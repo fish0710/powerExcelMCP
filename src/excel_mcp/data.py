@@ -197,3 +197,291 @@ def _write_data_to_worksheet(
     except Exception as e:
         logger.error(f"Failed to write worksheet data: {e}")
         raise DataError(str(e))
+
+def batch_process_data(
+    filepath: str, 
+    sheet_name: str, 
+    operations: list[dict], 
+    save_intervals: int = 100
+) -> dict:
+    """使用pandas处理Excel数据，支持高性能的批量操作。
+    
+    Args:
+        filepath: Excel文件路径
+        sheet_name: 工作表名称
+        operations: 操作列表，每个操作是一个字典，包含'type'和其他相关参数
+                  支持的操作类型: 'filter', 'transform', 'aggregate', 'sort'
+        save_intervals: 每处理多少操作保存一次，提高大数据处理的可靠性
+        
+    Returns:
+        包含处理结果信息的字典
+    """
+    try:
+        import pandas as pd
+        
+        # 读取Excel数据到pandas DataFrame
+        df = pd.read_excel(filepath, sheet_name=sheet_name)
+        original_row_count = len(df)
+        
+        # 执行操作
+        for i, op in enumerate(operations):
+            op_type = op.get('type')
+            
+            if op_type == 'filter':
+                # 过滤操作示例: {'type': 'filter', 'column': 'Age', 'operator': '>', 'value': 30}
+                column = op.get('column')
+                operator = op.get('operator')
+                value = op.get('value')
+                
+                if not all([column, operator, value is not None]):
+                    raise DataError(f"过滤操作缺少必要参数: {op}")
+                
+                if column not in df.columns:
+                    raise DataError(f"列 '{column}' 不存在")
+                
+                # 根据操作符应用过滤条件
+                if operator == '==':
+                    df = df[df[column] == value]
+                elif operator == '!=':
+                    df = df[df[column] != value]
+                elif operator == '>':
+                    df = df[df[column] > value]
+                elif operator == '<':
+                    df = df[df[column] < value]
+                elif operator == '>=':
+                    df = df[df[column] >= value]
+                elif operator == '<=':
+                    df = df[df[column] <= value]
+                elif operator == 'contains':
+                    df = df[df[column].astype(str).str.contains(str(value), na=False)]
+                elif operator == 'startswith':
+                    df = df[df[column].astype(str).str.startswith(str(value), na=False)]
+                elif operator == 'endswith':
+                    df = df[df[column].astype(str).str.endswith(str(value), na=False)]
+                else:
+                    raise DataError(f"不支持的过滤操作符: {operator}")
+            
+            elif op_type == 'transform':
+                # 转换操作示例: {'type': 'transform', 'column': 'Salary', 'method': 'multiply', 'value': 1.1}
+                column = op.get('column')
+                method = op.get('method')
+                value = op.get('value')
+                new_column = op.get('new_column', column)  # 可选参数，默认覆盖原列
+                
+                if not all([column, method]):
+                    raise DataError(f"转换操作缺少必要参数: {op}")
+                
+                if column not in df.columns:
+                    raise DataError(f"列 '{column}' 不存在")
+                
+                # 应用转换
+                if method == 'add':
+                    df[new_column] = df[column] + value
+                elif method == 'subtract':
+                    df[new_column] = df[column] - value
+                elif method == 'multiply':
+                    df[new_column] = df[column] * value
+                elif method == 'divide':
+                    df[new_column] = df[column] / value
+                elif method == 'round':
+                    decimals = int(value) if value is not None else 0
+                    df[new_column] = df[column].round(decimals)
+                elif method == 'upper':
+                    df[new_column] = df[column].astype(str).str.upper()
+                elif method == 'lower':
+                    df[new_column] = df[column].astype(str).str.lower()
+                elif method == 'replace':
+                    old_val = op.get('old_value', '')
+                    new_val = op.get('new_value', '')
+                    df[new_column] = df[column].astype(str).str.replace(str(old_val), str(new_val))
+                else:
+                    raise DataError(f"不支持的转换方法: {method}")
+            
+            elif op_type == 'sort':
+                # 排序操作示例: {'type': 'sort', 'columns': ['Age', 'Salary'], 'ascending': [True, False]}
+                columns = op.get('columns', [])
+                ascending = op.get('ascending', True)
+                
+                if not columns:
+                    raise DataError(f"排序操作缺少必要参数: {op}")
+                
+                for col in columns:
+                    if col not in df.columns:
+                        raise DataError(f"列 '{col}' 不存在")
+                
+                # 应用排序
+                df = df.sort_values(by=columns, ascending=ascending)
+            
+            elif op_type == 'aggregate':
+                # 聚合操作示例: {'type': 'aggregate', 'group_by': 'Department', 'agg_column': 'Salary', 'method': 'mean'}
+                group_by = op.get('group_by', [])
+                agg_column = op.get('agg_column')
+                method = op.get('method', 'mean')
+                
+                if not isinstance(group_by, list):
+                    group_by = [group_by]
+                
+                if not all([group_by, agg_column, method]):
+                    raise DataError(f"聚合操作缺少必要参数: {op}")
+                
+                for col in group_by + [agg_column]:
+                    if col not in df.columns:
+                        raise DataError(f"列 '{col}' 不存在")
+                
+                # 应用聚合
+                if method == 'mean':
+                    df = df.groupby(group_by)[agg_column].mean().reset_index()
+                elif method == 'sum':
+                    df = df.groupby(group_by)[agg_column].sum().reset_index()
+                elif method == 'count':
+                    df = df.groupby(group_by)[agg_column].count().reset_index()
+                elif method == 'min':
+                    df = df.groupby(group_by)[agg_column].min().reset_index()
+                elif method == 'max':
+                    df = df.groupby(group_by)[agg_column].max().reset_index()
+                else:
+                    raise DataError(f"不支持的聚合方法: {method}")
+            
+            else:
+                raise DataError(f"不支持的操作类型: {op_type}")
+            
+            # 定期保存，防止处理大量数据时内存溢出
+            if (i + 1) % save_intervals == 0:
+                temp_output = f"{filepath}.temp.xlsx"
+                df.to_excel(temp_output, sheet_name=sheet_name, index=False)
+                logger.info(f"临时保存进度，已处理 {i + 1}/{len(operations)} 个操作")
+        
+        # 将处理后的DataFrame写回Excel
+        with pd.ExcelWriter(filepath, mode='a', if_sheet_exists='replace') as writer:
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
+        
+        # 返回处理结果信息
+        return {
+            "message": f"批量处理完成，执行了 {len(operations)} 个操作",
+            "original_row_count": original_row_count,
+            "final_row_count": len(df)
+        }
+        
+    except ImportError:
+        raise DataError("批量处理需要安装pandas库：pip install pandas")
+    except Exception as e:
+        logger.error(f"批量处理数据时出错: {e}")
+        raise DataError(str(e))
+
+def convert_format(
+    input_filepath: str,
+    output_filepath: str,
+    output_format: str,
+    sheet_name: str = None,
+    encoding: str = 'utf-8'
+) -> dict:
+    """将Excel文件转换为其他格式。
+    
+    Args:
+        input_filepath: 输入Excel文件路径
+        output_filepath: 输出文件路径
+        output_format: 输出格式 ('csv', 'json', 'html', 'parquet', 'feather')
+        sheet_name: 要转换的工作表名称，默认为None（转换所有工作表）
+        encoding: 输出文件编码
+        
+    Returns:
+        包含转换结果信息的字典
+    """
+    try:
+        import pandas as pd
+        import os
+        
+        # 验证输出格式
+        supported_formats = ['csv', 'json', 'html', 'parquet', 'feather']
+        if output_format.lower() not in supported_formats:
+            raise DataError(f"不支持的输出格式: {output_format}。支持的格式: {', '.join(supported_formats)}")
+        
+        # 读取Excel文件
+        excel_file = pd.ExcelFile(input_filepath)
+        
+        # 确定要处理的工作表
+        if sheet_name is not None:
+            if sheet_name not in excel_file.sheet_names:
+                raise DataError(f"工作表 '{sheet_name}' 不存在。可用工作表: {', '.join(excel_file.sheet_names)}")
+            sheets_to_process = [sheet_name]
+        else:
+            sheets_to_process = excel_file.sheet_names
+        
+        # 根据输出格式确定文件扩展名
+        extension_map = {
+            'csv': '.csv',
+            'json': '.json',
+            'html': '.html',
+            'parquet': '.parquet',
+            'feather': '.feather'
+        }
+        ext = extension_map[output_format.lower()]
+        
+        # 处理单个或多个工作表
+        if len(sheets_to_process) == 1:
+            # 单个工作表处理
+            sheet = sheets_to_process[0]
+            df = pd.read_excel(input_filepath, sheet_name=sheet)
+            
+            # 应用转换
+            if output_format.lower() == 'csv':
+                df.to_csv(output_filepath, index=False, encoding=encoding)
+            elif output_format.lower() == 'json':
+                df.to_json(output_filepath, orient='records', force_ascii=False)
+            elif output_format.lower() == 'html':
+                df.to_html(output_filepath, index=False, encoding=encoding)
+            elif output_format.lower() == 'parquet':
+                df.to_parquet(output_filepath, index=False)
+            elif output_format.lower() == 'feather':
+                df.to_feather(output_filepath)
+            
+            return {
+                "message": f"已将 '{sheet}' 工作表转换为 {output_format.upper()} 格式",
+                "output_file": output_filepath
+            }
+        else:
+            # 多个工作表处理
+            output_files = []
+            
+            # 创建输出目录（如果不存在）
+            output_dir = os.path.dirname(output_filepath)
+            if output_dir and not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+            
+            # 处理文件名
+            base_name = os.path.basename(output_filepath)
+            if '.' in base_name:
+                base_name = base_name[:base_name.rfind('.')]
+            
+            # 为每个工作表创建对应的输出文件
+            for sheet in sheets_to_process:
+                sheet_filename = f"{base_name}_{sheet}{ext}"
+                sheet_filepath = os.path.join(os.path.dirname(output_filepath), sheet_filename)
+                
+                df = pd.read_excel(input_filepath, sheet_name=sheet)
+                
+                # 应用转换
+                if output_format.lower() == 'csv':
+                    df.to_csv(sheet_filepath, index=False, encoding=encoding)
+                elif output_format.lower() == 'json':
+                    df.to_json(sheet_filepath, orient='records', force_ascii=False)
+                elif output_format.lower() == 'html':
+                    df.to_html(sheet_filepath, index=False, encoding=encoding)
+                elif output_format.lower() == 'parquet':
+                    df.to_parquet(sheet_filepath, index=False)
+                elif output_format.lower() == 'feather':
+                    df.to_feather(sheet_filepath)
+                
+                output_files.append(sheet_filepath)
+            
+            return {
+                "message": f"已将 {len(sheets_to_process)} 个工作表转换为 {output_format.upper()} 格式",
+                "output_files": output_files
+            }
+    
+    except ImportError as e:
+        missing_lib = str(e).split("'")[1] if "'" in str(e) else "required library"
+        raise DataError(f"转换格式需要安装 {missing_lib} 库")
+    except Exception as e:
+        logger.error(f"转换格式时出错: {e}")
+        raise DataError(str(e))
