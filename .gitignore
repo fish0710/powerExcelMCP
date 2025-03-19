@@ -4,6 +4,7 @@ __pycache__/
 build/
 dist/
 src/*.egg-info/
+.DS_Store
 
 # Development Environment
 .venv/

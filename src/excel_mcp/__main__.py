@@ -1,5 +1,6 @@
 import asyncio
-from .server import run_server
+from .new_server import run_server
+
 
 def main():
     """Start the Excel MCP server."""
@@ -13,9 +14,11 @@ def main():
     except Exception as e:
         print(f"\nError: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         print("Server stopped.")
 
+
 if __name__ == "__main__":
-    main() 
+    main()
