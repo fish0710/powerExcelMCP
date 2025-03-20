@@ -1,8 +1,9 @@
 import logging
 import sys
 import os
+from os import path
 from typing import Any, List, Dict, Optional
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Context
 import pandas as pd
 from .data_handlers import ExcelHandler, CSVHandler
 
@@ -22,9 +23,6 @@ EXCEL_FILES_PATH = os.environ.get("EXCEL_FILES_PATH", "./excel_files")
 # Create the directory if it doesn't exist
 os.makedirs(EXCEL_FILES_PATH, exist_ok=True)
 
-# Initialize handlers
-excel_handler = ExcelHandler(EXCEL_FILES_PATH)
-csv_handler = CSVHandler(EXCEL_FILES_PATH)
 
 # Initialize FastMCP server
 mcp = FastMCP(
@@ -44,7 +42,11 @@ mcp = FastMCP(
 
 @mcp.tool()
 def run_code_with_excel(
-    filepath: str, sheet_name: str, python_code: str, result_file_path: str
+    filepath: str,
+    sheet_name: str,
+    python_code: str,
+    result_file_path: str,
+    ctx: Context,
 ) -> str:
     """
     执行Python代码处理Excel文件数据。
@@ -62,6 +64,9 @@ def run_code_with_excel(
         ValueError: 当Python代码格式不正确时
         TypeError: 当返回值类型不是DataFrame时
     """
+    # Initialize handlers
+
+    excel_handler = ExcelHandler(path.join(EXCEL_FILES_PATH, ""))
     try:
         return excel_handler.run_code(
             filepath, python_code, result_file_path, sheet_name=sheet_name
@@ -72,7 +77,9 @@ def run_code_with_excel(
 
 
 @mcp.tool()
-def run_code_with_csv(filepath: str, python_code: str, result_file_path: str) -> str:
+def run_code_with_csv(
+    filepath: str, python_code: str, result_file_path: str, ctx: Context
+) -> str:
     """
     执行Python代码处理CSV文件数据。
 
@@ -88,6 +95,8 @@ def run_code_with_csv(filepath: str, python_code: str, result_file_path: str) ->
         ValueError: 当Python代码格式不正确时
         TypeError: 当返回值类型不是DataFrame时
     """
+    csv_handler = CSVHandler(path.join(EXCEL_FILES_PATH, ""))
+    print(ctx)
     try:
         return csv_handler.run_code(filepath, python_code, result_file_path)
     except Exception as e:
@@ -96,7 +105,7 @@ def run_code_with_csv(filepath: str, python_code: str, result_file_path: str) ->
 
 
 @mcp.tool()
-def get_sheet_names(filepath: str) -> List[str]:
+def get_sheet_names(filepath: str, ctx: Context) -> List[str]:
     """
     获取Excel文件中所有工作表的名称。
 
@@ -110,6 +119,7 @@ def get_sheet_names(filepath: str) -> List[str]:
         FileNotFoundError: 当文件不存在时
         ValueError: 当文件不是有效的Excel文件时
     """
+    excel_handler = ExcelHandler(path.join(EXCEL_FILES_PATH, ""))
     try:
         return excel_handler.get_sheet_names(filepath)
     except Exception as e:
@@ -118,7 +128,7 @@ def get_sheet_names(filepath: str) -> List[str]:
 
 
 @mcp.tool()
-def get_columns_excel(filepath: str, sheet_name: str) -> str:
+def get_columns_excel(filepath: str, sheet_name: str, ctx: Context) -> str:
     """
     获取Excel文件指定工作表的所有列名。
 
@@ -133,6 +143,7 @@ def get_columns_excel(filepath: str, sheet_name: str) -> str:
         FileNotFoundError: 当文件不存在时
         ValueError: 当工作表不存在时
     """
+    excel_handler = ExcelHandler(path.join(EXCEL_FILES_PATH, ""))
     try:
         return ", ".join(excel_handler.get_columns(filepath, sheet_name))
     except Exception as e:
@@ -141,7 +152,7 @@ def get_columns_excel(filepath: str, sheet_name: str) -> str:
 
 
 @mcp.tool()
-def get_columns_csv(filepath: str) -> str:
+def get_columns_csv(filepath: str, ctx: Context) -> str:
     """
     获取CSV文件的所有列名。
 
@@ -155,6 +166,7 @@ def get_columns_csv(filepath: str) -> str:
         FileNotFoundError: 当文件不存在时
         ValueError: 当文件不是有效的CSV文件时
     """
+    csv_handler = CSVHandler(path.join(EXCEL_FILES_PATH, ""))
     try:
         return ", ".join(csv_handler.get_columns(filepath))
     except Exception as e:
@@ -163,7 +175,7 @@ def get_columns_csv(filepath: str) -> str:
 
 
 @mcp.tool()
-def get_missing_values_info_csv(filepath: str) -> str:
+def get_missing_values_info_csv(filepath: str, ctx: Context) -> str:
     """获取CSV文件中的缺失值信息。
 
     Args:
@@ -176,6 +188,7 @@ def get_missing_values_info_csv(filepath: str) -> str:
         FileNotFoundError: 当文件不存在时
         ValueError: 当文件格式不正确时
     """
+    csv_handler = CSVHandler(path.join(EXCEL_FILES_PATH, ""))
     try:
         df = csv_handler.read_data(csv_handler.get_file_path(filepath))
         return csv_handler.get_missing_values_info(df)
@@ -186,7 +199,10 @@ def get_missing_values_info_csv(filepath: str) -> str:
 
 @mcp.tool()
 def get_data_unique_values_csv(
-    filepath: str, columns: Optional[List[str]] = None, max_unique: int = 10
+    filepath: str,
+    ctx: Context,
+    columns: Optional[List[str]] = None,
+    max_unique: int = 10,
 ) -> Dict[str, Any]:
     """获取CSV文件中指定列的唯一值信息。
 
@@ -202,6 +218,7 @@ def get_data_unique_values_csv(
         FileNotFoundError: 当文件不存在时
         ValueError: 当指定的列不存在时
     """
+    csv_handler = CSVHandler(path.join(EXCEL_FILES_PATH, ""))
     try:
         df = csv_handler.read_data(csv_handler.get_file_path(filepath))
         return csv_handler.get_data_unique_values(df, columns, max_unique)
@@ -212,22 +229,24 @@ def get_data_unique_values_csv(
 
 @mcp.tool()
 def get_column_correlation_csv(
-    filepath: str, method: str = "pearson", min_correlation: float = 0.5
+    filepath: str, ctx: Context, method: str = "pearson", min_correlation: float = 0.5
 ) -> str:
-    """计算CSV文件中数值列之间的相关性。
+    """获取CSV文件中列之间的相关性。
 
     Args:
         filepath: CSV文件路径
-        method: 相关系数计算方法，可选值：'pearson', 'kendall', 'spearman'
-        min_correlation: 最小相关系数阈值，只返回绝对值大于此值的相关性
+        method: 相关性计算方法，可选值为'pearson'、'spearman'、'kendall'
+        min_correlation: 最小相关系数阈值，只返回相关系数大于此值的结果
+        ctx: MCP上下文对象
 
     Returns:
-        str: 相关系数矩阵的字符串表示
+        str: 包含列之间相关性分析结果的字符串
 
     Raises:
         FileNotFoundError: 当文件不存在时
-        ValueError: 当计算方法不正确或数据不适合计算相关性时
+        ValueError: 当相关性计算方法不正确或数据类型不适合计算相关性时
     """
+    csv_handler = CSVHandler(path.join(EXCEL_FILES_PATH, ""))
     try:
         df = csv_handler.read_data(csv_handler.get_file_path(filepath))
         return csv_handler.get_column_correlation(df, method, min_correlation)
@@ -237,20 +256,22 @@ def get_column_correlation_csv(
 
 
 @mcp.tool()
-def get_missing_values_info_sheet(filepath: str, sheet_name: str) -> str:
+def get_missing_values_info_sheet(filepath: str, sheet_name: str, ctx: Context) -> str:
     """获取Excel工作表中的缺失值信息。
 
     Args:
         filepath: Excel文件路径
         sheet_name: 工作表名称
+        ctx: MCP上下文对象
 
     Returns:
         str: 包含每列缺失值数量和缺失率的信息
 
     Raises:
         FileNotFoundError: 当文件不存在时
-        ValueError: 当工作表不存在或格式不正确时
+        ValueError: 当工作表不存在或文件格式不正确时
     """
+    excel_handler = ExcelHandler(path.join(EXCEL_FILES_PATH, ""))
     try:
         df = excel_handler.read_data(
             excel_handler.get_file_path(filepath), sheet_name=sheet_name
@@ -264,6 +285,7 @@ def get_missing_values_info_sheet(filepath: str, sheet_name: str) -> str:
 @mcp.tool()
 def get_data_unique_values_sheet(
     filepath: str,
+    ctx: Context,
     sheet_name: str,
     columns: Optional[List[str]] = None,
     max_unique: int = 10,
@@ -275,6 +297,7 @@ def get_data_unique_values_sheet(
         sheet_name: 工作表名称
         columns: 需要查看的列名列表，默认为所有列
         max_unique: 显示的最大唯一值数量，超过此数量的列只显示计数
+        ctx: MCP上下文对象
 
     Returns:
         Dict[str, Any]: 包含每列唯一值信息的字典
@@ -283,6 +306,7 @@ def get_data_unique_values_sheet(
         FileNotFoundError: 当文件不存在时
         ValueError: 当工作表不存在或指定的列不存在时
     """
+    excel_handler = ExcelHandler(path.join(EXCEL_FILES_PATH, ""))
     try:
         df = excel_handler.read_data(
             excel_handler.get_file_path(filepath), sheet_name=sheet_name
@@ -296,25 +320,28 @@ def get_data_unique_values_sheet(
 @mcp.tool()
 def get_column_correlation_sheet(
     filepath: str,
+    ctx: Context,
     sheet_name: str,
     method: str = "pearson",
     min_correlation: float = 0.5,
 ) -> str:
-    """计算Excel工作表中数值列之间的相关性。
+    """获取Excel工作表中列之间的相关性。
 
     Args:
         filepath: Excel文件路径
         sheet_name: 工作表名称
-        method: 相关系数计算方法，可选值：'pearson', 'kendall', 'spearman'
-        min_correlation: 最小相关系数阈值，只返回绝对值大于此值的相关性
+        method: 相关性计算方法，可选值为'pearson'、'spearman'、'kendall'
+        min_correlation: 最小相关系数阈值，只返回相关系数大于此值的结果
+        ctx: MCP上下文对象
 
     Returns:
-        str: 相关系数矩阵的字符串表示
+        str: 包含列之间相关性分析结果的字符串
 
     Raises:
         FileNotFoundError: 当文件不存在时
-        ValueError: 当工作表不存在、计算方法不正确或数据不适合计算相关性时
+        ValueError: 当工作表不存在、相关性计算方法不正确或数据类型不适合计算相关性时
     """
+    excel_handler = ExcelHandler(path.join(EXCEL_FILES_PATH, ""))
     try:
         df = excel_handler.read_data(
             excel_handler.get_file_path(filepath), sheet_name=sheet_name
