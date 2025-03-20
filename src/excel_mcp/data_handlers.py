@@ -42,7 +42,7 @@ class BaseDataHandler(ABC):
         """执行Python代码处理数据
         Args:
             filepath: 输入文件路径
-            python_code: 要执行的Python代码 
+            python_code: 要执行的Python代码
             result_file_path: 结果文件路径
             **kwargs: 额外的参数
         Returns:
@@ -64,8 +64,7 @@ class BaseDataHandler(ABC):
             if not isinstance(result_df, pd.DataFrame):
                 raise TypeError("main函数必须返回DataFrame类型")
             # 保存结果
-            self.write_data(result_df, self.get_file_path(
-                result_file_path), **kwargs)
+            self.write_data(result_df, self.get_file_path(result_file_path), **kwargs)
             return "执行完成 " + result_file_path
         except Exception as e:
             logger.error(f"Error running code: {e}")
@@ -123,15 +122,17 @@ class BaseDataHandler(ABC):
         missing_count = df.isnull().sum()
         missing_percent = (missing_count / len(df) * 100).round(4)
 
-        missing_info = pd.DataFrame({
-            '缺失值数量': missing_count,
-            '缺失率(%)': missing_percent
-        })
+        missing_info = pd.DataFrame(
+            {"缺失值数量": missing_count, "缺失率(%)": missing_percent}
+        )
 
-        return missing_info.sort_values('缺失值数量', ascending=False).to_string()
+        return missing_info.sort_values("缺失值数量", ascending=False).to_string()
 
     def get_data_unique_values(
-        self, df: pd.DataFrame, columns: Optional[List[str]] = None, max_unique: int = 10
+        self,
+        df: pd.DataFrame,
+        columns: Optional[List[str]] = None,
+        max_unique: int = 10,
     ) -> str:
         """获取指定列的唯一值信息
 
@@ -152,9 +153,17 @@ class BaseDataHandler(ABC):
                 unique_count = len(unique_values)
 
                 result[col] = {
-                    'count': unique_count,
-                    'values': unique_values.tolist() if hasattr(unique_values, 'tolist') else list(unique_values),
-                    'message':  f'超过{max_unique}个唯一值，不全部显示' if unique_count <= max_unique else ""
+                    "count": unique_count,
+                    "values": (
+                        unique_values.tolist()
+                        if hasattr(unique_values, "tolist")
+                        else list(unique_values)
+                    ),
+                    "message": (
+                        f"超过{max_unique}个唯一值，不全部显示"
+                        if unique_count <= max_unique
+                        else ""
+                    ),
                 }
 
         return str(result)
@@ -322,7 +331,12 @@ class ExcelHandler(BaseDataHandler):
         self, filepath: str, sheet_name: str = None, **kwargs
     ) -> pd.DataFrame:
         """读取Excel文件数据"""
-        return pd.read_excel(filepath, sheet_name=sheet_name, **kwargs)
+        return pd.read_excel(
+            filepath,
+            sheet_name=sheet_name,
+            engine="calamine",
+            **kwargs,
+        )
 
     def write_data(self, df: pd.DataFrame, filepath: str, **kwargs) -> None:
         """写入数据到Excel文件"""

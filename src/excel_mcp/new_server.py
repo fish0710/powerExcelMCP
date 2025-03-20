@@ -95,20 +95,24 @@ def get_columns_csv(filepath: str) -> str:
     """Get names of all columns in CSV file."""
     return ", ".join(csv_handler.get_columns(filepath))
 
+
 @mcp.tool()
-def get_missing_values_info_csv(filepath: str)-> str:
+def get_missing_values_info_csv(filepath: str) -> str:
     """获取缺失值信息
 
     Args:
-        
+
     Returns:
         包含缺失值信息的数据框
     """
-    return csv_handler.get_missing_values_info(csv_handler.read_data(csv_handler.get_file_path(filepath)))
+    return csv_handler.get_missing_values_info(
+        csv_handler.read_data(csv_handler.get_file_path(filepath))
+    )
+
 
 @mcp.tool()
 def get_data_unique_values_csv(
-   filepath: str, columns: Optional[List[str]] = None, max_unique: int = 10
+    filepath: str, columns: Optional[List[str]] = None, max_unique: int = 10
 ) -> Dict[str, Any]:
     """获取指定列的唯一值信息
 
@@ -119,11 +123,14 @@ def get_data_unique_values_csv(
     Returns:
         包含唯一值信息的字典
     """
-    return csv_handler.get_data_unique_values(csv_handler.read_data(csv_handler.get_file_path(filepath)))
+    return csv_handler.get_data_unique_values(
+        csv_handler.read_data(csv_handler.get_file_path(filepath))
+    )
+
 
 @mcp.tool()
 def get_column_correlation_csv(
-    filepath: str, method: str = 'pearson', min_correlation: float = 0.5
+    filepath: str, method: str = "pearson", min_correlation: float = 0.5
 ) -> str:
     """获取列之间的相关性
 
@@ -135,44 +142,63 @@ def get_column_correlation_csv(
     Returns:
         相关系数矩阵
     """
-    return csv_handler.get_data_unique_values(csv_handler.read_data(csv_handler.get_file_path(filepath)))
+    return csv_handler.get_data_unique_values(
+        csv_handler.read_data(csv_handler.get_file_path(filepath))
+    )
 
 
-# @mcp.tool()
-# def inspect_data_in_sheet(
-#     filepath: str, sheet_name: str, preview_rows: int = 5, preview_type: str = "head"
-# ) -> str:
-#     """查看Excel数据的基本信息，包括数据预览、统计摘要和数据结构。
+@mcp.tool()
+def get_missing_values_info_sheet(filepath: str) -> str:
+    """获取缺失值信息
 
-#     Args:
-#         filepath: Excel文件路径
-#         sheet_name: 工作表名称
-#         preview_rows: 预览行数，默认5行
-#         preview_type: 预览类型，'head'查看前几行，'tail'查看后几行
+    Args:
 
-#     Returns:
-#         包含数据信息的格式化字符串
-#     """
-#     return excel_handler.inspect_data(
-#         filepath, preview_rows, preview_type, sheet_name=sheet_name
-#     )
+    Returns:
+        包含缺失值信息的数据框
+    """
+    return excel_handler.get_missing_values_info(
+        excel_handler.read_data(excel_handler.get_file_path(filepath))
+    )
 
 
-# @mcp.tool()
-# def inspect_data_in_csv(
-#     filepath: str, preview_rows: int = 5, preview_type: str = "head"
-# ) -> str:
-#     """查看CSV数据的基本信息，包括数据预览、统计摘要和数据结构。
+@mcp.tool()
+def get_data_unique_values_sheet(
+    filepath: str, columns: Optional[List[str]] = None, max_unique: int = 10
+) -> Dict[str, Any]:
+    """获取指定列的唯一值信息
 
-#     Args:
-#         filepath: CSV文件路径
-#         preview_rows: 预览行数，默认5行
-#         preview_type: 预览类型，'head'查看前几行，'tail'查看后几行
+    Args:
+        columns: 需要查看的列，默认为所有列
+        max_unique: 显示的最大唯一值数量，对于唯一值超过此数的列只显示计数
 
-#     Returns:
-#         包含数据信息的格式化字符串
-#     """
-#     return csv_handler.inspect_data(filepath, preview_rows, preview_type)
+    Returns:
+        包含唯一值信息的字典
+    """
+    return excel_handler.get_data_unique_values(
+        excel_handler.read_data(
+            excel_handler.get_file_path(filepath), columns, max_unique
+        )
+    )
+
+
+@mcp.tool()
+def get_column_correlation_sheet(
+    filepath: str, method: str = "pearson", min_correlation: float = 0.5
+) -> str:
+    """获取列之间的相关性
+
+    Args:
+        method: 相关系数计算方法，'pearson', 'kendall', 或 'spearman'
+        min_correlation: 最小相关系数阈值，只返回绝对值大于此值的相关性
+
+    Returns:
+        相关系数矩阵
+    """
+    return excel_handler.get_data_unique_values(
+        excel_handler.read_data(excel_handler.get_file_path(filepath)),
+        method,
+        min_correlation,
+    )
 
 
 async def run_server():
