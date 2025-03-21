@@ -28,17 +28,8 @@ os.makedirs(EXCEL_FILES_PATH, exist_ok=True)
 mcp = FastMCP(
     "excel-mcp",
     version="0.1.0",
-    description="用于操作Excel文件的MCP服务器",
-    dependencies=["openpyxl>=3.1.2"],
-    env_vars={
-        "EXCEL_FILES_PATH": {
-            "description": "Path to Excel files directory",
-            "required": False,
-            "default": EXCEL_FILES_PATH,
-        }
-    },
+    description="用于操作Excel文件的MCP服务器, 文件地址应该使用相对地址",
 )
-
 
 
 @mcp.tool()
@@ -218,10 +209,11 @@ def get_missing_values_info_sheet(filepath: str, sheet_name: str, ctx: Context) 
         logger.error(f"Error getting Excel sheet missing values info: {e}")
         raise
 
+
 @mcp.tool()
 def inspect_data_from_sheet(filepath: str, sheet_name: str, ctx: Context) -> dict:
     """检查Excel工作表的数据信息。
-    
+
     这个函数不仅会检查缺失值，还会提供关于数据的一些基本信息，
     如每列的数据类型、非空值的数量等。
 
@@ -243,24 +235,25 @@ def inspect_data_from_sheet(filepath: str, sheet_name: str, ctx: Context) -> dic
         df = excel_handler.read_data(
             excel_handler.get_file_path(filepath), sheet_name=sheet_name
         )
-        
+
         # 获取缺失值信息
         missing_values_info = excel_handler.get_missing_values_info(df)
-        
+
         # 获取更多数据信息
         data_info = {
-            'columns': list(df.columns),
-            'dtypes': df.dtypes.to_dict(),
-            'non_null_counts': df.count().to_dict(),
-            'missing_values': missing_values_info,
+            "columns": list(df.columns),
+            "dtypes": df.dtypes.to_dict(),
+            "non_null_counts": df.count().to_dict(),
+            "missing_values": missing_values_info,
             # 可以根据需要添加更多数据检查项
         }
-        
+
         return data_info
-        
+
     except Exception as e:
         logger.error(f"Error inspecting Excel sheet data: {e}")
         raise
+
 
 @mcp.tool()
 def get_data_unique_values_sheet(
@@ -331,6 +324,7 @@ def get_column_correlation_sheet(
         logger.error(f"Error calculating Excel sheet correlations: {e}")
         raise
 
+
 @mcp.tool()
 def run_code_with_log_excel_sheet(
     filepath: str,
@@ -340,23 +334,23 @@ def run_code_with_log_excel_sheet(
 ) -> str:
     """
     使用 python 代码获取数据，执行过程中，print 会被捕获
-    
+
     参数:
         filepath: Excel文件路径
         sheet_name: 要处理的工作表名称
         python_code: 要执行的Python代码 main ，第一个参数为已经加载好的 DataFrame
         ctx: 上下文对象
-        
+
     返回:
         str: 执行结果信息
-        
+
     异常:
         ValueError: 当Python代码格式不正确时
         TypeError: 当返回值类型不是DataFrame时
     """
     # 初始化Excel处理器
     excel_handler = ExcelHandler(path.join(EXCEL_FILES_PATH, ""))
-    
+
     try:
         return excel_handler.run_code_only_log(
             filepath, python_code, sheet_name=sheet_name
@@ -364,6 +358,7 @@ def run_code_with_log_excel_sheet(
     except Exception as e:
         logger.error(f"处理Excel文件时出错: {e}")
         raise
+
 
 @mcp.tool()
 def modify_data_with_excel(
@@ -399,8 +394,6 @@ def modify_data_with_excel(
     except Exception as e:
         logger.error(f"Error executing Excel code: {e}")
         raise
-
-
 
 
 @mcp.tool()
