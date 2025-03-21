@@ -40,69 +40,6 @@ mcp = FastMCP(
 )
 
 
-@mcp.tool()
-def run_code_with_excel(
-    filepath: str,
-    sheet_name: str,
-    python_code: str,
-    result_file_path: str,
-    ctx: Context,
-) -> str:
-    """
-    执行Python代码处理Excel文件数据。
-
-    Args:
-        filepath: Excel文件路径
-        sheet_name: 工作表名称
-        python_code: 要执行的Python代码，必须包含返回DataFrame的main函数
-        result_file_path: 结果Excel文件保存路径
-
-    Returns:
-        str: 执行结果信息
-
-    Raises:
-        ValueError: 当Python代码格式不正确时
-        TypeError: 当返回值类型不是DataFrame时
-    """
-    # Initialize handlers
-
-    excel_handler = ExcelHandler(path.join(EXCEL_FILES_PATH, ""))
-    try:
-        return excel_handler.run_code(
-            filepath, python_code, result_file_path, sheet_name=sheet_name
-        )
-    except Exception as e:
-        logger.error(f"Error executing Excel code: {e}")
-        raise
-
-
-@mcp.tool()
-def run_code_with_csv(
-    filepath: str, python_code: str, result_file_path: str, ctx: Context
-) -> str:
-    """
-    执行Python代码处理CSV文件数据。
-
-    Args:
-        filepath: CSV文件路径
-        python_code: 要执行的Python代码，必须包含返回DataFrame的main函数
-        result_file_path: 结果CSV文件保存路径
-
-    Returns:
-        str: 执行结果信息
-
-    Raises:
-        ValueError: 当Python代码格式不正确时
-        TypeError: 当返回值类型不是DataFrame时
-    """
-    csv_handler = CSVHandler(path.join(EXCEL_FILES_PATH, ""))
-    print(ctx)
-    try:
-        return csv_handler.run_code(filepath, python_code, result_file_path)
-    except Exception as e:
-        logger.error(f"Error executing CSV code: {e}")
-        raise
-
 
 @mcp.tool()
 def get_sheet_names(filepath: str, ctx: Context) -> List[str]:
@@ -281,6 +218,49 @@ def get_missing_values_info_sheet(filepath: str, sheet_name: str, ctx: Context) 
         logger.error(f"Error getting Excel sheet missing values info: {e}")
         raise
 
+@mcp.tool()
+def inspect_data_from_sheet(filepath: str, sheet_name: str, ctx: Context) -> dict:
+    """检查Excel工作表的数据信息。
+    
+    这个函数不仅会检查缺失值，还会提供关于数据的一些基本信息，
+    如每列的数据类型、非空值的数量等。
+
+    Args:
+        filepath: Excel文件路径
+        sheet_name: 工作表名称
+        ctx: MCP上下文对象
+
+    Returns:
+        dict: 包含工作表数据信息的字典
+
+    Raises:
+        FileNotFoundError: 当文件不存在时
+        ValueError: 当工作表不存在或文件格式不正确时
+    """
+    excel_handler = ExcelHandler(path.join(EXCEL_FILES_PATH, ""))
+    try:
+        # 读取数据
+        df = excel_handler.read_data(
+            excel_handler.get_file_path(filepath), sheet_name=sheet_name
+        )
+        
+        # 获取缺失值信息
+        missing_values_info = excel_handler.get_missing_values_info(df)
+        
+        # 获取更多数据信息
+        data_info = {
+            'columns': list(df.columns),
+            'dtypes': df.dtypes.to_dict(),
+            'non_null_counts': df.count().to_dict(),
+            'missing_values': missing_values_info,
+            # 可以根据需要添加更多数据检查项
+        }
+        
+        return data_info
+        
+    except Exception as e:
+        logger.error(f"Error inspecting Excel sheet data: {e}")
+        raise
 
 @mcp.tool()
 def get_data_unique_values_sheet(
@@ -349,6 +329,105 @@ def get_column_correlation_sheet(
         return excel_handler.get_column_correlation(df, method, min_correlation)
     except Exception as e:
         logger.error(f"Error calculating Excel sheet correlations: {e}")
+        raise
+
+@mcp.tool()
+def run_code_with_log_excel_sheet(
+    filepath: str,
+    sheet_name: str,
+    python_code: str,
+    ctx: Context,
+) -> str:
+    """
+    使用 python 代码获取数据，执行过程中，print 会被捕获
+    
+    参数:
+        filepath: Excel文件路径
+        sheet_name: 要处理的工作表名称
+        python_code: 要执行的Python代码 main ，第一个参数为已经加载好的 DataFrame
+        ctx: 上下文对象
+        
+    返回:
+        str: 执行结果信息
+        
+    异常:
+        ValueError: 当Python代码格式不正确时
+        TypeError: 当返回值类型不是DataFrame时
+    """
+    # 初始化Excel处理器
+    excel_handler = ExcelHandler(path.join(EXCEL_FILES_PATH, ""))
+    
+    try:
+        return excel_handler.run_code_only_log(
+            filepath, python_code, sheet_name=sheet_name
+        )
+    except Exception as e:
+        logger.error(f"处理Excel文件时出错: {e}")
+        raise
+
+@mcp.tool()
+def modify_data_with_excel(
+    filepath: str,
+    sheet_name: str,
+    python_code: str,
+    result_file_path: str,
+    ctx: Context,
+) -> str:
+    """
+    执行Python代码处理Excel文件数据。
+
+    Args:
+        filepath: Excel文件路径
+        sheet_name: 工作表名称
+        python_code: 要执行的Python代码，是一个返回DataFrame的main函数，纯函数，避免副作用
+        result_file_path: 结果Excel文件保存路径
+
+    Returns:
+        str: 执行结果信息
+
+    Raises:
+        ValueError: 当Python代码格式不正确时
+        TypeError: 当返回值类型不是DataFrame时
+    """
+    # Initialize handlers
+
+    excel_handler = ExcelHandler(path.join(EXCEL_FILES_PATH, ""))
+    try:
+        return excel_handler.run_code(
+            filepath, python_code, result_file_path, sheet_name=sheet_name
+        )
+    except Exception as e:
+        logger.error(f"Error executing Excel code: {e}")
+        raise
+
+
+
+
+@mcp.tool()
+def modify_data_with_csv(
+    filepath: str, python_code: str, result_file_path: str, ctx: Context
+) -> str:
+    """
+    执行Python代码处理CSV文件数据。
+
+    Args:
+        filepath: CSV文件路径
+        python_code: 要执行的Python代码，必须包含返回DataFrame的main函数
+        result_file_path: 结果CSV文件保存路径
+
+    Returns:
+        str: 执行结果信息
+
+    Raises:
+        ValueError: 当Python代码格式不正确时
+        TypeError: 当返回值类型不是DataFrame时
+    """
+    csv_handler = CSVHandler(path.join(EXCEL_FILES_PATH, ""))
+    print(ctx)
+    try:
+        return csv_handler.run_code(filepath, python_code, result_file_path)
+    except Exception as e:
+        logger.error(f"Error executing CSV code: {e}")
         raise
 
 

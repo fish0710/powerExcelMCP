@@ -69,7 +69,47 @@ class BaseDataHandler(ABC):
         except Exception as e:
             logger.error(f"Error running code: {e}")
             return f"Error: {str(e)}"
-
+    def run_code_only_log(self, filepath: str, python_code: str, **kwargs) -> str:
+        """执行Python代码处理数据
+        Args:
+            filepath: 输入文件路径
+            python_code: 要执行的Python代码
+            **kwargs: 额外的参数
+        Returns:
+            执行结果信息
+        """
+        import io
+        import sys
+        from contextlib import redirect_stdout
+        
+        try:
+            full_path = self.get_file_path(filepath)
+            df = self.read_data(full_path, **kwargs)
+            
+            # 创建字符串IO对象来捕获标准输出
+            output_buffer = io.StringIO()
+            
+            # 准备执行环境
+            exec_globals = {"df": df, "pd": pd}
+            exec_locals = {}
+            
+            # 重定向标准输出并执行Python代码
+            with redirect_stdout(output_buffer):
+                exec(python_code, exec_globals, exec_locals)
+                
+                if "main" not in exec_locals:
+                    raise ValueError("代码中必须定义main函数")
+                    
+                # 执行main函数并获取结果
+                result_df = exec_locals["main"](df)
+            
+            # 获取捕获的输出
+            captured_output = output_buffer.getvalue()
+            return f"{captured_output}\n{result_df}"
+        
+        except Exception as e:
+            logger.error(f"Error running code: {e}")
+            return f"Error: {str(e)}"
     def inspect_data(
         self, filepath: str, preview_rows: int = 5, preview_type: str = "head", **kwargs
     ) -> str:
