@@ -69,6 +69,7 @@ class BaseDataHandler(ABC):
         except Exception as e:
             logger.error(f"Error running code: {e}")
             return f"Error: {str(e)}"
+
     def run_code_only_log(self, filepath: str, python_code: str, **kwargs) -> str:
         """执行Python代码处理数据
         Args:
@@ -81,35 +82,144 @@ class BaseDataHandler(ABC):
         import io
         import sys
         from contextlib import redirect_stdout
-        
+
         try:
             full_path = self.get_file_path(filepath)
             df = self.read_data(full_path, **kwargs)
-            
+
             # 创建字符串IO对象来捕获标准输出
             output_buffer = io.StringIO()
-            
+
             # 准备执行环境
             exec_globals = {"df": df, "pd": pd}
             exec_locals = {}
-            
+
             # 重定向标准输出并执行Python代码
             with redirect_stdout(output_buffer):
                 exec(python_code, exec_globals, exec_locals)
-                
+
                 if "main" not in exec_locals:
                     raise ValueError("代码中必须定义main函数")
-                    
+
                 # 执行main函数并获取结果
                 result_df = exec_locals["main"](df)
-            
+
             # 获取捕获的输出
             captured_output = output_buffer.getvalue()
             return f"{captured_output}\n{result_df}"
-        
+
         except Exception as e:
             logger.error(f"Error running code: {e}")
             return f"Error: {str(e)}"
+
+    def run_code_with_plot(
+        self, filepath: str, python_code: str, save_path: str, **kwargs
+    ) -> str:
+        """执行带有matplotlib绘图功能的Python代码
+        Args:
+            filepath: 输入文件路径
+            python_code: 要执行的Python代码
+            save_path: 图表保存路径，如果不提供则返回base64编码的图片
+            **kwargs: 额外的参数
+        Returns:
+            执行结果信息和图表数据
+        """
+        import io
+        import sys
+        import base64
+        from contextlib import redirect_stdout
+        import matplotlib.pyplot as plt
+        import matplotlib as mpl
+
+        # 设置中文字体 sudo apt install fonts-wqy-zenhei
+        mpl.rcParams["font.sans-serif"] = [
+            "PingFang SC",
+            "WenQuanYi Zen Hei",
+            "Microsoft YaHei",
+            "Arial Unicode MS",
+        ]
+        mpl.rcParams["axes.unicode_minus"] = False  # 解决负号显示问题
+
+        try:
+            full_path = self.get_file_path(filepath)
+            df = self.read_data(full_path, **kwargs)
+
+            # 创建字符串IO对象来捕获标准输出
+            output_buffer = io.StringIO()
+
+            # 准备执行环境
+            exec_globals = {"df": df, "pd": pd, "plt": plt}
+            exec_locals = {}
+
+            # 重定向标准输出并执行Python代码
+            with redirect_stdout(output_buffer):
+                exec(python_code, exec_globals, exec_locals)
+
+                if "main" not in exec_locals:
+                    raise ValueError("代码中必须定义main函数")
+
+                # 执行main函数
+                exec_locals["main"](df, plt)
+
+            # 获取捕获的输出
+            captured_output = output_buffer.getvalue()
+            print(captured_output)
+
+            # 确保目标目录存在
+            save_full_path = self.get_file_path(save_path)
+            os.makedirs(os.path.dirname(save_full_path), exist_ok=True)
+            # 保存图表到文件
+            plt.savefig(save_full_path)
+            plt.close()
+            return f"{captured_output}\n图表已保存到: {save_path}"
+
+        except Exception as e:
+            logger.error(f"Error running code with plot: {e}")
+            return f"Error: {str(e)}"
+        finally:
+            plt.close("all")
+
+    def get_column_correlation(
+        self, df: pd.DataFrame, method: str = "pearson", min_correlation: float = 0.5
+    ) -> str:
+        """计算DataFrame中数值列之间的相关性。
+
+        Args:
+            df: 输入的DataFrame
+            method: 相关性计算方法，支持'pearson'、'spearman'、'kendall'
+            min_correlation: 相关系数阈值，仅返回相关系数绝对值大于此值的结果
+
+        Returns:
+            str: 包含列间相关性分析的详细结果字符串
+        """
+        try:
+            # 获取数值类型的列
+            numeric_cols = df.select_dtypes(include=["int64", "float64"]).columns
+            if len(numeric_cols) < 2:
+                return "没有足够的数值列来计算相关性"
+
+            # 计算相关性矩阵
+            correlation_matrix = df[numeric_cols].corr(method=method)
+
+            # 筛选显著相关的结果
+            significant_correlations = []
+            for i in range(len(numeric_cols)):
+                for j in range(i + 1, len(numeric_cols)):
+                    corr = correlation_matrix.iloc[i, j]
+                    if abs(corr) >= min_correlation:
+                        significant_correlations.append(
+                            f"{numeric_cols[i]} 和 {numeric_cols[j]} 的相关系数为: {corr:.4f}"
+                        )
+
+            if not significant_correlations:
+                return f"没有找到相关系数绝对值大于{min_correlation}的列对"
+
+            return "\n".join(significant_correlations)
+
+        except Exception as e:
+            logger.error(f"计算相关性时出错: {e}")
+            raise
+
     def inspect_data(
         self, filepath: str, preview_rows: int = 5, preview_type: str = "head", **kwargs
     ) -> str:
