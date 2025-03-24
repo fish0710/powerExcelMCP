@@ -412,10 +412,10 @@ def plot_data_excel(
         filepath: Excel文件路径
         sheet_name: 工作表名称
         save_path: 图表保存路径
-        python_code: 要执行的Python代码，必须包含返回matplotlib图形的main函数, 第一个参数为已经加载好的 DataFrame, 第二个为 plt 对象
+        python_code: 要执行的Python代码，定义为 def main(df, plt)，可以使用 matplotlib 进行可视化, 返回 plt 对象，不用保存
 
     Returns:
-        str: 执行结果信息，请提供给用户结果文件相对路径即可
+        str: 执行结果信息，请提供给用户结果文件相对路径, 用 show_file_to_user 工具前端展示
 
     Raises:
         ValueError: 当图表类型不支持或数据列不存在时
