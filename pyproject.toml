@@ -5,6 +5,7 @@ description = "MCP server for Excel file manipulation"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "matplotlib>=3.10.1",
     "mcp[cli]>=1.2.0",
     "openpyxl>=3.1.2",
     "pandas>=2.2.3",
@@ -14,6 +15,10 @@ dependencies = [
 [[project.authors]]
 name = "haris"
 email = "haris.musa@outlook.com"
+
+[[project.authors]]
+name = "KonghaYao"
+email = "3446798488@qq.com"
 
 [build-system]
 requires = ["hatchling"]
