@@ -129,7 +129,8 @@ def get_columns_excel(filepath: str, sheet_name: str) -> str:
     """
     excel_handler = ExcelHandler(path.join(EXCEL_FILES_PATH, ""))
     try:
-        return ", ".join(excel_handler.get_columns(filepath, sheet_name))
+        columns = excel_handler.get_columns(filepath, sheet_name)
+        return "共" + str(len(columns)) + "列\n" + ", ".join(columns)
     except Exception as e:
         logger.error(f"Error getting Excel columns: {e}")
         raise
