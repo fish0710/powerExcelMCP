@@ -55,6 +55,63 @@ def get_sheet_names(filepath: str) -> List[str]:
         raise
 
 
+def get_basic_data_from_sheet(filepath: str, sheet_name: str) -> str:
+    """数据分析首选：获取Excel工作表的完整数据概览。执行全面的数据分析，包括数据类型统计、缺失值分析、
+    非空值计数等关键指标的检查。
+    Args:
+        filepath: 目标Excel文件的相对或绝对路径
+        sheet_name: 要分析的工作表名称
+    Returns:
+        str: 包含工作表数据分析结果的详细信息字符串
+    Raises:
+        FileNotFoundError: 指定的文件路径不存在
+        ValueError: 工作表不存在或文件格式无效
+    """
+    excel_handler = ExcelHandler(path.join(EXCEL_FILES_PATH, ""))
+    try:
+        # 读取数据
+        df = excel_handler.read_data(
+            excel_handler.get_file_path(filepath), sheet_name=sheet_name
+        )
+        # 获取行列数据
+        num_rows, num_cols = df.shape
+        # 获取缺失值信息
+        missing_values_info = excel_handler.get_missing_values_info(df)
+        
+        # 将数据类型信息转换为字符串格式
+        dtypes_str = "\n".join([f"    {col}: {dtype}" for col, dtype in df.dtypes.items()])
+        
+        # 将非空值计数转换为字符串格式
+        non_null_str = "\n".join([f"    {col}: {count}" for col, count in df.count().items()])
+        
+        # 将缺失值信息转换为字符串
+        if isinstance(missing_values_info, dict):
+            missing_values_str = "\n".join([f"    {col}: {info}" for col, info in missing_values_info.items()])
+        else:
+            missing_values_str = str(missing_values_info)
+        
+        # 构建最终的结果字符串
+        result = f"""
+数据分析结果：
+1. 数据规模:
+    总行数: {num_rows}
+    总列数: {num_cols}
+
+2. 数据类型:
+{dtypes_str}
+
+3. 非空值计数:
+{non_null_str}
+
+4. 缺失值分析:
+{missing_values_str}
+"""
+        return result
+    except Exception as e:
+        error_msg = f"Error inspecting Excel sheet data: {e}"
+        logger.error(error_msg)
+        return error_msg
+
 @mcp.tool()
 def get_columns_excel(filepath: str, sheet_name: str) -> str:
     """获取Excel文件中指定工作表的所有列名。
@@ -204,49 +261,6 @@ def get_missing_values_info_sheet(filepath: str, sheet_name: str) -> str:
         logger.error(f"Error getting Excel sheet missing values info: {e}")
         raise
 
-
-@mcp.tool()
-def get_basic_data_from_sheet(filepath: str, sheet_name: str) -> dict:
-    """获取Excel工作表的完整数据概览。执行全面的数据分析，包括数据类型统计、缺失值分析、
-    非空值计数等关键指标的检查。
-
-    Args:
-        filepath: 目标Excel文件的相对或绝对路径
-        sheet_name: 要分析的工作表名称
-
-    Returns:
-        dict: 包含工作表数据分析结果的详细信息字典
-
-    Raises:
-        FileNotFoundError: 指定的文件路径不存在
-        ValueError: 工作表不存在或文件格式无效
-    """
-    excel_handler = ExcelHandler(path.join(EXCEL_FILES_PATH, ""))
-    try:
-        # 读取数据
-        df = excel_handler.read_data(
-            excel_handler.get_file_path(filepath), sheet_name=sheet_name
-        )
-
-        # 获取缺失值信息
-        missing_values_info = excel_handler.get_missing_values_info(df)
-
-        # 获取更多数据信息
-        data_info = {
-            "columns": list(df.columns),
-            "dtypes": df.dtypes.to_dict(),
-            "non_null_counts": df.count().to_dict(),
-            "missing_values": missing_values_info,
-            # 可以根据需要添加更多数据检查项
-        }
-
-        return data_info
-
-    except Exception as e:
-        logger.error(f"Error inspecting Excel sheet data: {e}")
-        raise
-
-
 @mcp.tool()
 def get_data_unique_values_sheet(
     filepath: str,
@@ -319,6 +333,7 @@ def run_code_with_log_excel_sheet(
 ) -> str:
     """使用 python 代码获取数据，执行过程中，print 会被捕获
     1. 进行去重时，一定要确定去重的列是有意义的
+    2. 请注意将日志打印的精简一些，避免整段无意义的数据打印
 
     参数:
         filepath: Excel文件路径
@@ -415,7 +430,7 @@ def plot_data_excel(
         python_code: 要执行的Python代码，定义为 def main(df, plt)，可以使用 matplotlib 进行可视化, 返回 plt 对象，不用保存
 
     Returns:
-        str: 执行结果信息，请提供给用户结果文件相对路径, 用 show_file_to_user 工具前端展示
+        str: 执行结果信息，请提供给用户结果文件相对路径
 
     Raises:
         ValueError: 当图表类型不支持或数据列不存在时
