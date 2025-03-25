@@ -10,6 +10,8 @@ from abc import ABC, abstractmethod
 logger = logging.getLogger("excel-mcp")
 
 cache = {}
+
+
 def cache_method(func):
     """
     装饰器，为实例方法添加基于文件路径和参数的缓存
@@ -36,6 +38,7 @@ def cache_method(func):
         return cache[key]
 
     return wrapper
+
 
 class BaseDataHandler(ABC):
     """基础数据处理类，提供通用的数据操作功能"""
