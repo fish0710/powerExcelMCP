@@ -3,11 +3,39 @@ import numpy as np
 import os
 import logging
 import pandas as pd
+import functools
 from typing import List, Dict, Any
 from abc import ABC, abstractmethod
 
 logger = logging.getLogger("excel-mcp")
 
+cache = {}
+def cache_method(func):
+    """
+    装饰器，为实例方法添加基于文件路径和参数的缓存
+    支持基于文件最后修改时间的缓存失效
+    """
+
+    @functools.wraps(func)
+    def wrapper(self, filepath, *args, **kwargs):
+        # 获取文件的最后修改时间
+        try:
+            mod_time = os.path.getmtime(filepath)
+        except OSError:
+            # 如果文件不存在或无法获取修改时间，则不使用缓存
+            return func(self, filepath, *args, **kwargs)
+
+        # 创建缓存键，包含文件路径、最后修改时间和额外参数
+        key = (filepath, mod_time, frozenset(kwargs.items()))
+
+        if key not in cache:
+            # 缓存未命中，执行原始方法并缓存结果
+            result = func(self, filepath, *args, **kwargs)
+            cache[key] = result
+
+        return cache[key]
+
+    return wrapper
 
 class BaseDataHandler(ABC):
     """基础数据处理类，提供通用的数据操作功能"""
@@ -322,6 +350,7 @@ class BaseDataHandler(ABC):
 class ExcelHandler(BaseDataHandler):
     """Excel文件处理类"""
 
+    @cache_method
     def read_data(
         self, filepath: str, sheet_name: str = None, **kwargs
     ) -> pd.DataFrame:
@@ -361,6 +390,7 @@ class ExcelHandler(BaseDataHandler):
 class CSVHandler(BaseDataHandler):
     """CSV文件处理类"""
 
+    @cache_method
     def read_data(self, filepath: str, **kwargs) -> pd.DataFrame:
         """读取CSV文件数据"""
         return pd.read_csv(filepath, **kwargs)
