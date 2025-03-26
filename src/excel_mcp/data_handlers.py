@@ -2,7 +2,7 @@ from typing import List, Dict, Union, Optional, Callable, Any, Tuple
 import numpy as np
 import os
 import logging
-import pandas as pd
+import modin.pandas as pd
 import functools
 from typing import List, Dict, Any
 from abc import ABC, abstractmethod

@@ -8,6 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from .data_handlers import ExcelHandler
 
+os.environ["MODIN_ENGINE"] = "dask"
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -364,7 +365,14 @@ def get_numerical_statistics(
             if columns is None
             else columns
         )
+
+        # 获取基本统计信息
         stats = df[numerical_cols].describe()
+
+        # 添加求和信息
+        sums = df[numerical_cols].sum(skipna=True)[0]
+        stats.loc["sum"] = sums
+
         return stats.to_dict()
     except Exception as e:
         logger.error(f"计算统计信息时出错: {e}")
@@ -397,7 +405,16 @@ def get_group_statistics(
             excel_handler.get_file_path(filepath), sheet_name=sheet_name
         )
         grouped = df.groupby(group_by)[agg_columns].agg(agg_functions)
-        return grouped.to_string()
+        # 按第一个统计列的第一个聚合函数结果降序排序
+        first_col = agg_columns[0]
+        first_func = agg_functions[0]
+        sort_col = (
+            (first_col, first_func)
+            if isinstance(grouped.columns, pd.MultiIndex)
+            else first_col
+        )
+        sorted_grouped = grouped.sort_values(by=sort_col, ascending=False)
+        return sorted_grouped.to_string()
     except Exception as e:
         logger.error(f"分组统计时出错: {e}")
         raise
