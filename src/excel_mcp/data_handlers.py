@@ -73,20 +73,17 @@ class BaseDataHandler(ABC):
         pass
 
     def run_code(
-        self, filepath: str, python_code: str, result_file_path: str, **kwargs
+        self,
+        filepath: str,
+        python_code: str,
+        sheet_name: str,
+        result_file_path: str,
+        result_sheet_name: str = None,
+        **kwargs,
     ) -> str:
-        """执行Python代码处理数据
-        Args:
-            filepath: 输入文件路径
-            python_code: 要执行的Python代码
-            result_file_path: 结果文件路径
-            **kwargs: 额外的参数
-        Returns:
-            执行结果信息
-        """
         try:
             full_path = self.get_file_path(filepath)
-            df = self.read_data(full_path, **kwargs)
+            df = self.read_data(full_path, sheet_name=sheet_name)
             # 准备执行环境
 
             exec_locals = {"df": df, "pd": pd}
@@ -100,7 +97,11 @@ class BaseDataHandler(ABC):
             if not isinstance(result_df, pd.DataFrame):
                 raise TypeError("main函数必须返回DataFrame类型")
             # 保存结果
-            self.write_data(result_df, self.get_file_path(result_file_path), **kwargs)
+            self.write_data(
+                result_df,
+                self.get_file_path(result_file_path),
+                sheet_name=result_sheet_name or sheet_name,
+            )
             return "执行完成 " + result_file_path
         except Exception as e:
             logger.error(f"Error running code: {e}")
@@ -369,9 +370,23 @@ class ExcelHandler(BaseDataHandler):
             **kwargs,
         )
 
-    def write_data(self, df: pd.DataFrame, filepath: str, **kwargs) -> None:
-        """写入数据到Excel文件"""
-        df.to_excel(filepath, index=False, **kwargs)
+    def write_data(
+        self, df: pd.DataFrame, filepath: str, sheet_name: str = None, **kwargs
+    ) -> None:
+        """写入数据到Excel文件
+        Args:
+            df: 要写入的DataFrame
+            filepath: 文件路径
+            sheet_name: 工作表名称，默认为None
+            **kwargs: 额外的参数
+        """
+        mode = "a" if os.path.exists(filepath) else "w"
+        with pd.ExcelWriter(
+            filepath, mode=mode, engine="openpyxl", if_sheet_exists="replace"
+        ) as writer:
+            df.to_excel(
+                writer, sheet_name=sheet_name or "Sheet1", index=False, **kwargs
+            )
 
     def get_sheet_names(self, filepath: str) -> List[str]:
         """获取Excel文件中的所有工作表名称"""
@@ -388,29 +403,6 @@ class ExcelHandler(BaseDataHandler):
         try:
             full_path = self.get_file_path(filepath)
             df = self.read_data(full_path, sheet_name=sheet_name)
-            return df.columns.tolist()
-        except Exception as e:
-            logger.error(f"Error getting columns: {e}")
-            raise
-
-
-class CSVHandler(BaseDataHandler):
-    """CSV文件处理类"""
-
-    @cache_method
-    def read_data(self, filepath: str, **kwargs) -> pd.DataFrame:
-        """读取CSV文件数据"""
-        return pd.read_csv(filepath, **kwargs)
-
-    def write_data(self, df: pd.DataFrame, filepath: str, **kwargs) -> None:
-        """写入数据到CSV文件"""
-        df.to_csv(filepath, index=False, **kwargs)
-
-    def get_columns(self, filepath: str) -> List[str]:
-        """获取CSV文件的列名"""
-        try:
-            full_path = self.get_file_path(filepath)
-            df = self.read_data(full_path)
             return df.columns.tolist()
         except Exception as e:
             logger.error(f"Error getting columns: {e}")

@@ -279,16 +279,20 @@ def run_code_with_log_excel_sheet(
 
 @mcp.tool()
 def modify_data_with_excel(
-    filepath: str, sheet_name: str, python_code: str, result_file_path: str
+    filepath: str,
+    sheet_name: str,
+    python_code: str,
+    result_file_path: str,
+    result_sheet_name: str = "Sheet1",
 ) -> str:
     """执行Python代码生成Excel文件数据。
 
     Args:
         filepath: Excel文件路径
-        sheet_name: 工作表名称
+        sheet_name: 源工作表名称
         python_code: 要执行的Python代码，是一个返回DataFrame的main函数，纯函数，避免副作用
         result_file_path: 结果Excel文件保存路径
-
+        result_sheet_name: 结果工作表名称
     Returns:
         str: 执行结果信息
 
@@ -301,7 +305,11 @@ def modify_data_with_excel(
     excel_handler = ExcelHandler(path.join(EXCEL_FILES_PATH, ""))
     try:
         return excel_handler.run_code(
-            filepath, python_code, result_file_path, sheet_name=sheet_name
+            filepath,
+            python_code,
+            sheet_name=sheet_name,
+            result_file_path=result_file_path,
+            result_sheet_name=result_sheet_name,
         )
     except Exception as e:
         logger.error(f"Error executing Excel code: {e}")
