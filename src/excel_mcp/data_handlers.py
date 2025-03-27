@@ -332,16 +332,21 @@ class BaseDataHandler(ABC):
                 unique_values = df[col].dropna().unique()
                 unique_count = len(unique_values)
 
+                values_list = (
+                    unique_values.tolist()
+                    if hasattr(unique_values, "tolist")
+                    else list(unique_values)
+                )
                 result[col] = {
                     "count": unique_count,
                     "values": (
-                        unique_values.tolist()
-                        if hasattr(unique_values, "tolist")
-                        else list(unique_values)
+                        values_list[:max_unique]
+                        if unique_count > max_unique
+                        else values_list
                     ),
                     "message": (
-                        f"超过{max_unique}个唯一值，不全部显示"
-                        if unique_count <= max_unique
+                        f"超过{max_unique}个唯一值，仅显示前{max_unique}个"
+                        if unique_count > max_unique
                         else ""
                     ),
                 }
