@@ -83,8 +83,8 @@ class BaseDataHandler(ABC):
             full_path = self.get_file_path(filepath)
             df = self.read_data(full_path, **kwargs)
             # 准备执行环境
-            exec_globals = {"df": df, "pd": pd}
-            exec_locals = {}
+            exec_globals = globals()
+            exec_locals = {"df": df, "pd": pd}
 
             # 执行Python代码
             exec(python_code, exec_globals, exec_locals)
@@ -122,8 +122,8 @@ class BaseDataHandler(ABC):
             output_buffer = io.StringIO()
 
             # 准备执行环境
-            exec_globals = {"df": df, "pd": pd}
-            exec_locals = {}
+            exec_globals = globals()
+            exec_locals = {"df": df, "pd": pd}
 
             # 重定向标准输出并执行Python代码
             with redirect_stdout(output_buffer):
@@ -179,8 +179,8 @@ class BaseDataHandler(ABC):
             output_buffer = io.StringIO()
 
             # 准备执行环境
-            exec_globals = {"df": df, "pd": pd, "plt": plt}
-            exec_locals = {}
+            exec_globals = globals()
+            exec_locals = {"df": df, "pd": pd, "plt": plt}
 
             # 重定向标准输出并执行Python代码
             with redirect_stdout(output_buffer):
