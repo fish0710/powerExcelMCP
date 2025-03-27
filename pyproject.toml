@@ -5,6 +5,7 @@ description = "MCP server for Excel file manipulation"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "cpca>=0.5.5",
     "dask[complete]>=2025.3.0",
     "matplotlib>=3.10.1",
     "mcp[cli]>=1.2.0",
@@ -12,6 +13,7 @@ dependencies = [
     "openpyxl>=3.1.2",
     "pandas>=2.2.3",
     "python-calamine>=0.3.1",
+    "setuptools>=78.1.0",
     "statsmodels>=0.14.4",
 ]
 [[project.authors]]
