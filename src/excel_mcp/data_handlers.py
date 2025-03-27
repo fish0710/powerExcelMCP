@@ -40,6 +40,11 @@ def cache_method(func):
     return wrapper
 
 
+def run_python_code(python_code, exec_locals):
+    exec_globals = globals()
+    return exec(python_code, exec_globals, exec_locals)
+
+
 class BaseDataHandler(ABC):
     """基础数据处理类，提供通用的数据操作功能"""
 
@@ -83,11 +88,11 @@ class BaseDataHandler(ABC):
             full_path = self.get_file_path(filepath)
             df = self.read_data(full_path, **kwargs)
             # 准备执行环境
-            exec_globals = globals()
+
             exec_locals = {"df": df, "pd": pd}
 
             # 执行Python代码
-            exec(python_code, exec_globals, exec_locals)
+            run_python_code(python_code, exec_locals)
             if "main" not in exec_locals:
                 raise ValueError("代码中必须定义main函数")
             # 执行main函数并获取结果
@@ -121,13 +126,11 @@ class BaseDataHandler(ABC):
             # 创建字符串IO对象来捕获标准输出
             output_buffer = io.StringIO()
 
-            # 准备执行环境
-            exec_globals = globals()
             exec_locals = {"df": df, "pd": pd}
 
             # 重定向标准输出并执行Python代码
             with redirect_stdout(output_buffer):
-                exec(python_code, exec_globals, exec_locals)
+                run_python_code(python_code, exec_locals)
 
                 if "main" not in exec_locals:
                     raise ValueError("代码中必须定义main函数")
@@ -156,8 +159,6 @@ class BaseDataHandler(ABC):
             执行结果信息和图表数据
         """
         import io
-        import sys
-        import base64
         from contextlib import redirect_stdout
         import matplotlib.pyplot as plt
         import matplotlib as mpl
@@ -178,13 +179,11 @@ class BaseDataHandler(ABC):
             # 创建字符串IO对象来捕获标准输出
             output_buffer = io.StringIO()
 
-            # 准备执行环境
-            exec_globals = globals()
             exec_locals = {"df": df, "pd": pd, "plt": plt}
 
             # 重定向标准输出并执行Python代码
             with redirect_stdout(output_buffer):
-                exec(python_code, exec_globals, exec_locals)
+                run_python_code(python_code, exec_locals)
 
                 if "main" not in exec_locals:
                     raise ValueError("代码中必须定义main函数")
