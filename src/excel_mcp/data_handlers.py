@@ -380,13 +380,20 @@ class ExcelHandler(BaseDataHandler):
             sheet_name: 工作表名称，默认为None
             **kwargs: 额外的参数
         """
-        mode = "a" if os.path.exists(filepath) else "w"
-        with pd.ExcelWriter(
-            filepath, mode=mode, engine="openpyxl", if_sheet_exists="replace"
-        ) as writer:
-            df.to_excel(
-                writer, sheet_name=sheet_name or "Sheet1", index=False, **kwargs
-            )
+        if os.path.exists(filepath):
+            with pd.ExcelWriter(
+                filepath, mode="a", engine="openpyxl", if_sheet_exists="replace"
+            ) as writer:
+                df.to_excel(
+                    writer, sheet_name=sheet_name or "Sheet1", index=False, **kwargs
+                )
+        else:
+            with pd.ExcelWriter(
+                filepath, mode="w", engine="openpyxl"
+            ) as writer:
+                df.to_excel(
+                    writer, sheet_name=sheet_name or "Sheet1", index=False, **kwargs
+                )
 
     def get_sheet_names(self, filepath: str) -> List[str]:
         """获取Excel文件中的所有工作表名称"""
