@@ -94,14 +94,29 @@ class BaseDataHandler(ABC):
                 raise ValueError("代码中必须定义main函数")
             # 执行main函数并获取结果
             result_df = exec_locals["main"](df)
-            if not isinstance(result_df, pd.DataFrame):
-                raise TypeError("main函数必须返回DataFrame类型")
-            # 保存结果
-            self.write_data(
-                result_df,
-                self.get_file_path(result_file_path),
-                sheet_name=result_sheet_name or sheet_name,
-            )
+            # result_df 是 Dict[str,DataFrame] 或者 DataFrame
+
+            if isinstance(result_df, dict):
+                if not all(isinstance(df, pd.DataFrame) for df in result_df.values()):
+                    raise TypeError("当返回字典时，所有值必须是DataFrame类型")
+                # 批量写入多个工作表
+                for sheet_name, df in result_df.items():
+                    self.write_data(
+                        df,
+                        self.get_file_path(result_file_path),
+                        sheet_name=sheet_name,
+                        **kwargs,
+                    )
+            elif isinstance(result_df, pd.DataFrame):
+                # 保持原有的单表写入逻辑
+                self.write_data(
+                    result_df,
+                    self.get_file_path(result_file_path),
+                    sheet_name=result_sheet_name or sheet_name,
+                    **kwargs,
+                )
+            else:
+                raise TypeError("main函数必须返回DataFrame或Dict[str,DataFrame]类型")
             return "执行完成 " + result_file_path
         except Exception as e:
             logger.error(f"Error running code: {e}")
@@ -388,9 +403,7 @@ class ExcelHandler(BaseDataHandler):
                     writer, sheet_name=sheet_name or "Sheet1", index=False, **kwargs
                 )
         else:
-            with pd.ExcelWriter(
-                filepath, mode="w", engine="openpyxl"
-            ) as writer:
+            with pd.ExcelWriter(filepath, mode="w", engine="openpyxl") as writer:
                 df.to_excel(
                     writer, sheet_name=sheet_name or "Sheet1", index=False, **kwargs
                 )

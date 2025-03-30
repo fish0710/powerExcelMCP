@@ -278,27 +278,40 @@ def run_code_with_log_excel_sheet(
 
 
 @mcp.tool()
-def modify_data_with_excel(
+def process_excel_data_with_sheets(
     filepath: str,
     sheet_name: str,
     python_code: str,
     result_file_path: str,
-    result_sheet_name: str = "Sheet1",
+    default_sheet_name: str = "Sheet1",
 ) -> str:
-    """执行Python代码生成Excel文件数据。
+    """执行Python代码生成Excel文件数据，支持单表或多表处理。
 
     Args:
         filepath: Excel文件路径
         sheet_name: 源工作表名称
-        python_code: 要执行的Python代码，是一个返回DataFrame的main函数，纯函数，避免副作用
+        python_code: 要执行的Python代码，是一个返回DataFrame或Dict[str, DataFrame]的main函数。
+                   当返回DataFrame时，数据将保存到default_sheet_name指定的工作表中；
+                   当返回Dict[str, DataFrame]时，字典的键为工作表名称，值为对应的DataFrame。
+                   函数应为纯函数，避免副作用。
         result_file_path: 结果Excel文件保存路径
-        result_sheet_name: 结果工作表名称
+        default_sheet_name: 默认工作表名称，当python_code返回单个DataFrame时使用
     Returns:
-        str: 执行结果信息
+        str: 执行结果信息，包含生成的工作表信息
 
-    Raises:
-        ValueError: 当Python代码格式不正确时
-        TypeError: 当返回值类型不是DataFrame时
+    Example:
+        # 返回单个DataFrame的示例
+        def main(df):
+            return df.groupby('category').sum()
+
+        # 返回多个工作表的示例
+        def main(df):
+            monthly = df.groupby('month').sum()
+            yearly = df.groupby('year').sum()
+            return {
+                'monthly_summary': monthly,
+                'yearly_summary': yearly
+            }
     """
     # Initialize handlers
 
@@ -309,7 +322,7 @@ def modify_data_with_excel(
             python_code,
             sheet_name=sheet_name,
             result_file_path=result_file_path,
-            result_sheet_name=result_sheet_name,
+            result_sheet_name=default_sheet_name,
         )
     except Exception as e:
         logger.error(f"Error executing Excel code: {e}")
