@@ -32,10 +32,10 @@ def cache_method(func):
 
         if key not in cache:
             # 缓存未命中，执行原始方法并缓存结果
+            print(f"未命中缓存 {key}")
             result = func(self, filepath, *args, **kwargs)
             cache[key] = result
-
-        return cache[key]
+        return cache[key].copy()
 
     return wrapper
 
