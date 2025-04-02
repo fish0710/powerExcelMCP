@@ -35,7 +35,7 @@ mcp = FastMCP(
 
 
 @mcp.tool()
-def get_sheet_names(filepath: str) -> List[str]:
+def list_worksheets(filepath: str) -> List[str]:
     """获取指定Excel文件中的所有工作表名称。
 
     Args:
@@ -57,7 +57,7 @@ def get_sheet_names(filepath: str) -> List[str]:
         raise
 
 
-def get_basic_data_from_sheet(filepath: str, sheet_name: str) -> str:
+def analyze_data_overview(filepath: str, sheet_name: str) -> str:
     """数据分析首选：获取Excel工作表的完整数据概览。执行全面的数据分析，包括数据类型统计、缺失值分析、
     非空值计数等关键指标的检查。
     Args:
@@ -122,7 +122,7 @@ def get_basic_data_from_sheet(filepath: str, sheet_name: str) -> str:
 
 
 @mcp.tool()
-def get_columns_excel(filepath: str, sheet_name: str) -> str:
+def list_columns(filepath: str, sheet_name: str) -> str:
     """获取Excel文件中指定工作表的所有列名及其数据类型。
 
     Args:
@@ -151,7 +151,7 @@ def get_columns_excel(filepath: str, sheet_name: str) -> str:
 
 
 @mcp.tool()
-def get_missing_values_info_sheet(filepath: str, sheet_name: str) -> str:
+def analyze_missing_values(filepath: str, sheet_name: str) -> str:
     """获取Excel工作表中的数据缺失情况。
 
     Args:
@@ -177,7 +177,7 @@ def get_missing_values_info_sheet(filepath: str, sheet_name: str) -> str:
 
 
 @mcp.tool()
-def get_data_unique_values_sheet(
+def analyze_unique_values(
     filepath: str,
     sheet_name: str,
     columns: Optional[List[str]] = None,
@@ -210,7 +210,7 @@ def get_data_unique_values_sheet(
 
 
 @mcp.tool()
-def get_column_correlation_sheet(
+def analyze_correlations(
     filepath: str,
     sheet_name: str,
     method: str = "pearson",
@@ -243,27 +243,37 @@ def get_column_correlation_sheet(
 
 
 @mcp.tool()
-def run_code_with_log_excel_sheet(
-    filepath: str, sheet_name: str, python_code: str
-) -> str:
-    """使用 python 代码打印观察数据专用，执行过程中，print 会被捕获
-    ！！！ 这个函数输出的数据只能查看，并不能给程序调用
-    1. 进行去重时，一定要确定去重的列是有意义的
-    2. 请注意将日志打印的精简一些，避免整段无意义的数据打印
-    3. 不能使用这个函数绘图、进行数据修改、输出文件
-    4. 不要使用这个函数进行绘图，因为绘图会占用大量的内存，并且会占用大量的时间
+def print_data_log(filepath: str, sheet_name: str, python_code: str) -> str:
+    """用于执行Python代码并捕获输出的数据观察工具。
 
-    参数:
-        filepath: Excel文件路径
+    此工具专门用于数据探索和调试，通过执行自定义Python代码来观察和分析DataFrame数据。
+    所有print语句的输出都会被捕获并返回，便于查看中间计算结果。
+
+    使用限制：
+    1. 仅用于数据观察，不能修改源文件或生成新文件
+    2. 不支持图表绘制功能（请使用visualize_data）
+    3. 代码执行结果仅用于显示，不可被其他函数调用
+    4. 建议优化print输出，避免冗长的数据打印
+
+    Args:
+        filepath: Excel文件的相对或绝对路径
         sheet_name: 要处理的工作表名称
-        python_code: 要执行的Python代码 main ，第一个参数为已经加载好的 DataFrame
+        python_code: 包含main函数的Python代码，main函数接收一个DataFrame参数
 
-    返回:
-        str: 执行结果信息
+    Returns:
+        str: 包含所有print输出和main函数返回值的字符串
 
-    异常:
-        ValueError: 当Python代码格式不正确时
-        TypeError: 当返回值类型不是DataFrame时
+    Raises:
+        ValueError: Python代码格式错误或缺少main函数
+        TypeError: main函数返回值类型错误
+
+    Example:
+        代码示例：
+        ```python
+        def main(df):
+            # 显示前5行数据
+            print(df.head())
+        ```
     """
     # 初始化Excel处理器
     excel_handler = ExcelHandler(path.join(EXCEL_FILES_PATH, ""))
@@ -278,7 +288,7 @@ def run_code_with_log_excel_sheet(
 
 
 @mcp.tool()
-def process_excel_data_with_sheets(
+def save_transformed_data(
     filepath: str,
     sheet_name: str,
     python_code: str,
@@ -330,7 +340,7 @@ def process_excel_data_with_sheets(
 
 
 @mcp.tool()
-def plot_data_excel(
+def visualize_data(
     filepath: str,
     sheet_name: str,
     save_path: str,
@@ -363,7 +373,7 @@ def plot_data_excel(
 
 
 @mcp.tool()
-def get_numerical_statistics(
+def analyze_numeric_stats(
     filepath: str, sheet_name: str, columns: List[str]
 ) -> Dict[str, Any]:
     """获取数值列的统计信息，包括均值、中位数、标准差、分位数等。
@@ -401,7 +411,7 @@ def get_numerical_statistics(
 
 
 @mcp.tool()
-def get_group_statistics(
+def analyze_group_stats(
     filepath: str,
     sheet_name: str,
     group_by: str,
