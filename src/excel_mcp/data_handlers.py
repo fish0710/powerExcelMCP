@@ -225,6 +225,55 @@ class BaseDataHandler(ABC):
         finally:
             plt.close("all")
 
+    def run_code_with_pyecharts(
+        self, filepath: str, python_code: str, save_path: str, **kwargs
+    ) -> str:
+        """执行带有pyecharts绘图功能的Python代码
+        Args:
+            filepath: 输入文件路径
+            python_code: 要执行的Python代码
+            save_path: 图表保存路径，必须以.html结尾
+            **kwargs: 额外的参数
+        Returns:
+            执行结果信息和图表数据
+        """
+        import io
+        from contextlib import redirect_stdout
+
+        try:
+            full_path = self.get_file_path(filepath)
+            df = self.read_data(full_path, **kwargs)
+
+            # 创建字符串IO对象来捕获标准输出
+            output_buffer = io.StringIO()
+
+            exec_locals = {"df": df, "pd": pd}
+
+            # 重定向标准输出并执行Python代码
+            with redirect_stdout(output_buffer):
+                run_python_code(python_code, exec_locals)
+
+                if "main" not in exec_locals:
+                    raise ValueError("代码中必须定义main函数")
+
+                # 执行main函数并获取pyecharts图表对象
+                chart = exec_locals["main"](df)
+
+                # 确保目标目录存在
+                save_full_path = self.get_file_path(save_path)
+                os.makedirs(os.path.dirname(save_full_path), exist_ok=True)
+
+                # 保存HTML文件
+                chart.render(save_full_path)
+
+            # 获取捕获的输出
+            captured_output = output_buffer.getvalue()
+            return f"{captured_output}\n图表已保存到: {save_path}"
+
+        except Exception as e:
+            logger.error(f"Error running code with pyecharts: {e}")
+            return f"Error: {str(e)}"
+
     def get_column_correlation(
         self, df: pd.DataFrame, method: str = "pearson", min_correlation: float = 0.5
     ) -> str:
@@ -368,6 +417,36 @@ class BaseDataHandler(ABC):
                 }
 
         return str(result)
+
+    def get_random_sample(
+        self, df: pd.DataFrame, sample_size: int, **kwargs
+    ) -> pd.DataFrame:
+        """获取数据的随机采样
+
+        Args:
+            filepath: 输入文件路径
+            sample_size: 需要采样的行数
+            **kwargs: 额外的参数，会传递给read_data方法
+
+        Returns:
+            pd.DataFrame: 包含随机采样数据的DataFrame
+
+        Raises:
+            ValueError: 采样数量大于数据集大小时抛出
+        """
+        try:
+
+            if sample_size > len(df):
+                raise ValueError(
+                    f"采样数量({sample_size})不能大于数据集大小({len(df)})"
+                )
+
+            if sample_size > 20:
+                return ValueError(f"采样数量({sample_size})大于20，不支持随机采样")
+            return df.sample(n=sample_size, random_state=None)
+        except Exception as e:
+            logger.error(f"Error getting random sample: {e}")
+            raise
 
 
 class ExcelHandler(BaseDataHandler):

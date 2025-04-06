@@ -143,8 +143,17 @@ def list_columns(filepath: str, sheet_name: str) -> str:
         )
         columns = df.columns.tolist()
         dtypes = df.dtypes
-        result = [f"{col}\t{dtypes[col]}" for col in columns]
-        return "共" + str(len(columns)) + "列\n" + ", ".join(result)
+        # 计算列名最大长度用于对齐
+        max_col_len = max(len(str(col)) for col in columns) if columns else 0
+        max_col_len = max(max_col_len, 10)  # 最小宽度为10
+
+        # 生成格式化的表格输出
+        header = f"共 {len(columns)} 列\n" + "-" * (max_col_len + 10) + "\n"
+        header += f"{'列名'.ljust(max_col_len)}    类型\n"
+        header += "-" * (max_col_len + 10) + "\n"
+
+        rows = [f"{str(col).ljust(max_col_len)}    {dtypes[col]}" for col in columns]
+        return header + "\n".join(rows)
     except Exception as e:
         logger.error(f"Error getting Excel columns: {e}")
         raise
@@ -180,7 +189,6 @@ def analyze_missing_values(filepath: str, sheet_name: str) -> str:
 def analyze_unique_values(
     filepath: str,
     sheet_name: str,
-    columns: Optional[List[str]] = None,
     max_unique: int = 10,
 ) -> Dict[str, Any]:
     """获取Excel工作表中指定列的唯一值分布。
@@ -188,7 +196,6 @@ def analyze_unique_values(
     Args:
         filepath: 目标Excel文件的相对或绝对路径
         sheet_name: 要分析的工作表名称
-        columns: 要分析的列名列表，默认分析所有列
         max_unique: 每列显示的最大唯一值数量，超出此数量仅显示统计信息
 
     Returns:
@@ -203,7 +210,9 @@ def analyze_unique_values(
         df = excel_handler.read_data(
             excel_handler.get_file_path(filepath), sheet_name=sheet_name
         )
-        return excel_handler.get_data_unique_values(df, columns, max_unique)
+        return excel_handler.get_data_unique_values(
+            df, columns=None, max_unique=max_unique
+        )
     except Exception as e:
         logger.error(f"Error getting Excel sheet unique values: {e}")
         raise
@@ -340,7 +349,7 @@ def save_transformed_data(
 
 
 @mcp.tool()
-def visualize_data(
+def plot_matplotlib_chart(
     filepath: str,
     sheet_name: str,
     save_path: str,
@@ -373,6 +382,39 @@ def visualize_data(
 
 
 @mcp.tool()
+def plot_pyecharts_chart(
+    filepath: str,
+    sheet_name: str,
+    save_path: str,
+    python_code: str,
+) -> str:
+    """使用pyecharts生成交互式图表的专用函数。
+
+    Args:
+        filepath: Excel文件路径
+        sheet_name: 工作表名称
+        save_path: 图表保存路径，必须以.html结尾
+        python_code: 要执行的Python代码，定义为 def main(df)，返回一个pyecharts图表对象
+
+    Returns:
+        str: 执行结果信息，包含生成的HTML文件路径
+
+    Raises:
+        ValueError: 当图表类型不支持或数据列不存在时
+        FileNotFoundError: 当文件不存在时
+        TypeError: 当返回值不是pyecharts图表对象时
+    """
+    excel_handler = ExcelHandler(path.join(EXCEL_FILES_PATH, ""))
+    try:
+        return excel_handler.run_code_with_pyecharts(
+            filepath, python_code, save_path, sheet_name=sheet_name
+        )
+    except Exception as e:
+        logger.error(f"生成pyecharts图表时出错: {e}")
+        raise
+
+
+@mcp.tool()
 def analyze_numeric_stats(
     filepath: str, sheet_name: str, columns: List[str]
 ) -> Dict[str, Any]:
@@ -400,11 +442,11 @@ def analyze_numeric_stats(
         # 获取基本统计信息
         stats = df[numerical_cols].describe()
 
-        # 添加求和信息
-        sums = df[numerical_cols].sum(skipna=True)[0]
+        # 计算数值列的和
+        sums = df[numerical_cols].sum(numeric_only=True, skipna=True)
         stats.loc["sum"] = sums
 
-        return stats.to_dict()
+        return stats.to_json(orient="records", force_ascii=False)
     except Exception as e:
         logger.error(f"计算统计信息时出错: {e}")
         raise
@@ -481,6 +523,37 @@ def analyze_time_series(
         return f"时间序列分析结果（频率：{freq}）：\n{resampled.to_string()}"
     except Exception as e:
         logger.error(f"时间序列分析时出错: {e}")
+        raise
+
+
+@mcp.tool()
+def get_random_sample(filepath: str, sheet_name: str, sample_size: int) -> str:
+    """获取Excel工作表中的随机采样数据。
+
+    Args:
+        filepath: 目标Excel文件的相对或绝对路径
+        sheet_name: 要采样的工作表名称
+        sample_size: 需要采样的行数
+
+    Returns:
+        str: 包含随机采样数据的字符串表示
+
+    Raises:
+        FileNotFoundError: 指定的文件路径不存在
+        ValueError: 采样数量大于数据集大小时抛出
+    """
+    excel_handler = ExcelHandler(path.join(EXCEL_FILES_PATH, ""))
+    try:
+        df = excel_handler.read_data(
+            excel_handler.get_file_path(filepath), sheet_name=sheet_name
+        )
+        sample_df = excel_handler.get_random_sample(
+            df, sample_size, sheet_name=sheet_name
+        )
+
+        return sample_df.to_json(orient="records", force_ascii=False)
+    except Exception as e:
+        logger.error(f"Error getting random sample: {e}")
         raise
 
 
