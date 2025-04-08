@@ -6,7 +6,7 @@ from typing import Any, List, Dict, Optional
 from mcp.server.fastmcp import FastMCP, Context
 import pandas as pd
 import matplotlib.pyplot as plt
-from .data_handlers import ExcelHandler
+from .data_handlers import ExcelDataHandler as ExcelHandler
 
 os.environ["MODIN_ENGINE"] = "dask"
 # Configure logging

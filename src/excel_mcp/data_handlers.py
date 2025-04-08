@@ -45,8 +45,8 @@ def run_python_code(python_code, exec_locals):
     return exec(python_code, exec_globals, exec_locals)
 
 
-class BaseDataHandler(ABC):
-    """基础数据处理类，提供通用的数据操作功能"""
+class ExcelDataHandler:
+    """Excel和CSV数据处理类，提供完整的文件操作功能"""
 
     def __init__(self, files_path: str):
         self.files_path = files_path
@@ -62,15 +62,82 @@ class BaseDataHandler(ABC):
             return filename
         return os.path.join(self.files_path, filename)
 
-    @abstractmethod
-    def read_data(self, filepath: str, **kwargs) -> pd.DataFrame:
-        """读取数据文件"""
-        pass
+    def _is_csv_file(self, filepath: str) -> bool:
+        """判断文件是否为CSV文件"""
+        return filepath.lower().endswith(".csv")
 
-    @abstractmethod
-    def write_data(self, df: pd.DataFrame, filepath: str, **kwargs) -> None:
-        """写入数据到文件"""
-        pass
+    @cache_method
+    def read_data(
+        self, filepath: str, sheet_name: str = None, **kwargs
+    ) -> pd.DataFrame:
+        """读取Excel或CSV文件数据
+
+        Args:
+            filepath: 文件路径
+            sheet_name: 工作表名称，对于CSV文件此参数将被忽略
+            **kwargs: 额外的参数，会传递给pandas的读取函数
+
+        Returns:
+            pd.DataFrame: 读取的数据
+        """
+        if self._is_csv_file(filepath):
+            return pd.read_csv(filepath, **kwargs)
+        else:
+            return pd.read_excel(
+                filepath,
+                sheet_name=sheet_name,
+                engine="calamine",
+                **kwargs,
+            )
+
+    def write_data(
+        self, df: pd.DataFrame, filepath: str, sheet_name: str = None, **kwargs
+    ) -> None:
+        """写入数据到Excel或CSV文件
+
+        Args:
+            df: 要写入的DataFrame
+            filepath: 文件路径
+            sheet_name: 工作表名称，对于CSV文件此参数将被忽略
+            **kwargs: 额外的参数，会传递给pandas的写入函数
+        """
+        if self._is_csv_file(filepath):
+            df.to_csv(filepath, index=False, **kwargs)
+        else:
+            if os.path.exists(filepath):
+                with pd.ExcelWriter(
+                    filepath, mode="a", engine="openpyxl", if_sheet_exists="replace"
+                ) as writer:
+                    df.to_excel(
+                        writer, sheet_name=sheet_name or "Sheet1", index=False, **kwargs
+                    )
+            else:
+                with pd.ExcelWriter(filepath, mode="w", engine="openpyxl") as writer:
+                    df.to_excel(
+                        writer, sheet_name=sheet_name or "Sheet1", index=False, **kwargs
+                    )
+
+    def get_sheet_names(self, filepath: str) -> List[str]:
+        """获取Excel文件中的所有工作表名称，对于CSV文件返回['Sheet1']"""
+        try:
+            if self._is_csv_file(filepath):
+                return ["Sheet1"]
+            full_path = self.get_file_path(filepath)
+            excel_file = pd.ExcelFile(full_path)
+            return excel_file.sheet_names
+        except Exception as e:
+            logger.error(f"Error getting sheet names: {e}")
+            raise
+
+    def get_columns(self, filepath: str, sheet_name: str = None) -> List[str]:
+        """获取指定工作表的列名，对于CSV文件sheet_name参数将被忽略"""
+        try:
+            full_path = self.get_file_path(filepath)
+            df = self.read_data(full_path, sheet_name=sheet_name)
+            return df.columns.tolist()
+        except Exception as e:
+            logger.error(f"Error getting columns: {e}")
+            raise
 
     def run_code(
         self,
@@ -123,7 +190,7 @@ class BaseDataHandler(ABC):
             return f"Error: {str(e)}"
 
     def run_code_only_log(self, filepath: str, python_code: str, **kwargs) -> str:
-        """执行Python代码处理数据
+        """执行Python代码处理数据并记录日志
         Args:
             filepath: 输入文件路径
             python_code: 要执行的Python代码
@@ -446,63 +513,4 @@ class BaseDataHandler(ABC):
             return df.sample(n=sample_size, random_state=None)
         except Exception as e:
             logger.error(f"Error getting random sample: {e}")
-            raise
-
-
-class ExcelHandler(BaseDataHandler):
-    """Excel文件处理类"""
-
-    @cache_method
-    def read_data(
-        self, filepath: str, sheet_name: str = None, **kwargs
-    ) -> pd.DataFrame:
-        """读取Excel文件数据"""
-        return pd.read_excel(
-            filepath,
-            sheet_name=sheet_name,
-            engine="calamine",
-            **kwargs,
-        )
-
-    def write_data(
-        self, df: pd.DataFrame, filepath: str, sheet_name: str = None, **kwargs
-    ) -> None:
-        """写入数据到Excel文件
-        Args:
-            df: 要写入的DataFrame
-            filepath: 文件路径
-            sheet_name: 工作表名称，默认为None
-            **kwargs: 额外的参数
-        """
-        if os.path.exists(filepath):
-            with pd.ExcelWriter(
-                filepath, mode="a", engine="openpyxl", if_sheet_exists="replace"
-            ) as writer:
-                df.to_excel(
-                    writer, sheet_name=sheet_name or "Sheet1", index=False, **kwargs
-                )
-        else:
-            with pd.ExcelWriter(filepath, mode="w", engine="openpyxl") as writer:
-                df.to_excel(
-                    writer, sheet_name=sheet_name or "Sheet1", index=False, **kwargs
-                )
-
-    def get_sheet_names(self, filepath: str) -> List[str]:
-        """获取Excel文件中的所有工作表名称"""
-        try:
-            full_path = self.get_file_path(filepath)
-            excel_file = pd.ExcelFile(full_path)
-            return excel_file.sheet_names
-        except Exception as e:
-            logger.error(f"Error getting sheet names: {e}")
-            raise
-
-    def get_columns(self, filepath: str, sheet_name: str) -> List[str]:
-        """获取指定工作表的列名"""
-        try:
-            full_path = self.get_file_path(filepath)
-            df = self.read_data(full_path, sheet_name=sheet_name)
-            return df.columns.tolist()
-        except Exception as e:
-            logger.error(f"Error getting columns: {e}")
             raise
