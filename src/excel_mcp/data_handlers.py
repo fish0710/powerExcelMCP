@@ -6,6 +6,7 @@ import pandas as pd
 import functools
 from typing import List, Dict, Any
 from abc import ABC, abstractmethod
+from .code_runner import run_python_code
 
 logger = logging.getLogger("excel-mcp")
 
@@ -38,11 +39,6 @@ def cache_method(func):
         return cache[key].copy()
 
     return wrapper
-
-
-def run_python_code(python_code, exec_locals):
-    exec_globals = globals()
-    return exec(python_code, exec_globals, exec_locals)
 
 
 class ExcelDataHandler:
