@@ -30,23 +30,23 @@ os.makedirs(EXCEL_FILES_PATH, exist_ok=True)
 mcp = FastMCP(
     "excel-mcp",
     version="0.1.0",
-    description="用于操作Excel文件的MCP服务器, 文件地址应该使用相对地址",
+    description="用于操作Excel和CSV文件的MCP服务器, 文件地址应该使用相对地址",
 )
 
 
 @mcp.tool()
 def list_worksheets(filepath: str) -> List[str]:
-    """获取指定Excel文件中的所有工作表名称。
+    """获取指定Excel或CSV文件中的所有工作表名称。
 
     Args:
-        filepath: 目标Excel文件的相对或绝对路径
+        filepath: 目标文件的相对或绝对路径
 
     Returns:
         List[str]: 包含所有工作表名称的列表
 
     Raises:
         FileNotFoundError: 指定的文件路径不存在
-        ValueError: 文件格式无效或不是Excel文件
+        ValueError: 文件格式无效或不是Excel/CSV文件
     """
     excel_handler = ExcelHandler(path.join(EXCEL_FILES_PATH, ""))
     try:
@@ -58,11 +58,11 @@ def list_worksheets(filepath: str) -> List[str]:
 
 
 def analyze_data_overview(filepath: str, sheet_name: str) -> str:
-    """数据分析首选：获取Excel工作表的完整数据概览。执行全面的数据分析，包括数据类型统计、缺失值分析、
+    """数据分析首选：获取工作表的完整数据概览。执行全面的数据分析，包括数据类型统计、缺失值分析、
     非空值计数等关键指标的检查。
     Args:
-        filepath: 目标Excel文件的相对或绝对路径
-        sheet_name: 要分析的工作表名称
+        filepath: 目标文件的相对或绝对路径
+        sheet_name: 要分析的工作表名称（对于CSV文件，此参数将被忽略）
     Returns:
         str: 包含工作表数据分析结果的详细信息字符串
     Raises:
@@ -123,11 +123,11 @@ def analyze_data_overview(filepath: str, sheet_name: str) -> str:
 
 @mcp.tool()
 def list_columns(filepath: str, sheet_name: str) -> str:
-    """获取Excel文件中指定工作表的所有列名及其数据类型。
+    """获取文件中指定工作表的所有列名及其数据类型。
 
     Args:
-        filepath: 目标Excel文件的相对或绝对路径
-        sheet_name: 要获取列名的工作表名称
+        filepath: 目标文件的相对或绝对路径
+        sheet_name: 要获取列名的工作表名称（对于CSV文件，此参数将被忽略）
 
     Returns:
         str: 包含列名和数据类型的格式化字符串
@@ -161,11 +161,11 @@ def list_columns(filepath: str, sheet_name: str) -> str:
 
 @mcp.tool()
 def analyze_missing_values(filepath: str, sheet_name: str) -> str:
-    """获取Excel工作表中的数据缺失情况。
+    """获取Excel或CSV文件中的数据缺失情况。
 
     Args:
-        filepath: 目标Excel文件的相对或绝对路径
-        sheet_name: 要分析的工作表名称
+        filepath: 目标文件的相对或绝对路径
+        sheet_name: 要分析的工作表名称（对于CSV文件，此参数将被忽略）
 
     Returns:
         str: 包含每列的缺失值数量和缺失率的详细统计信息
@@ -191,11 +191,11 @@ def analyze_unique_values(
     sheet_name: str,
     max_unique: int = 10,
 ) -> Dict[str, Any]:
-    """获取Excel工作表中指定列的唯一值分布。
+    """获取Excel或CSV文件中指定列的唯一值分布。
 
     Args:
-        filepath: 目标Excel文件的相对或绝对路径
-        sheet_name: 要分析的工作表名称
+        filepath: 目标文件的相对或绝对路径
+        sheet_name: 要分析的工作表名称（对于CSV文件，此参数将被忽略）
         max_unique: 每列显示的最大唯一值数量，超出此数量仅显示统计信息
 
     Returns:
@@ -225,11 +225,11 @@ def analyze_correlations(
     method: str = "pearson",
     min_correlation: float = 0.5,
 ) -> str:
-    """获取Excel工作表中列之间的相关性。
+    """获取Excel或CSV文件中列之间的相关性。
 
     Args:
-        filepath: 目标Excel文件的相对或绝对路径
-        sheet_name: 要分析的工作表名称
+        filepath: 目标文件的相对或绝对路径
+        sheet_name: 要分析的工作表名称（对于CSV文件，此参数将被忽略）
         method: 相关性分析方法，支持'pearson'、'spearman'、'kendall'
         min_correlation: 相关系数阈值，仅返回相关系数绝对值大于此值的结果
 
@@ -265,8 +265,8 @@ def print_data_log(filepath: str, sheet_name: str, python_code: str) -> str:
     4. 建议优化print输出，避免冗长的数据打印
 
     Args:
-        filepath: Excel文件的相对或绝对路径
-        sheet_name: 要处理的工作表名称
+        filepath: Excel或CSV文件的相对或绝对路径
+        sheet_name: 要处理的工作表名称（对于CSV文件，此参数将被忽略）
         python_code: 包含main函数的Python代码，main函数接收一个DataFrame参数
 
     Returns:
@@ -304,16 +304,16 @@ def save_transformed_data(
     result_file_path: str,
     default_sheet_name: str = "Sheet1",
 ) -> str:
-    """执行Python代码生成Excel文件数据，支持单表或多表处理。
+    """执行Python代码生成Excel或CSV文件数据，支持单表或多表处理。
 
     Args:
-        filepath: Excel文件路径
-        sheet_name: 源工作表名称
+        filepath: 源文件路径
+        sheet_name: 源工作表名称（对于CSV文件，此参数将被忽略）
         python_code: 要执行的Python代码，是一个返回DataFrame或Dict[str, DataFrame]的main函数。
                    当返回DataFrame时，数据将保存到default_sheet_name指定的工作表中；
                    当返回Dict[str, DataFrame]时，字典的键为工作表名称，值为对应的DataFrame。
                    函数应为纯函数，避免副作用。
-        result_file_path: 结果Excel文件保存路径
+        result_file_path: 结果文件保存路径
         default_sheet_name: 默认工作表名称，当python_code返回单个DataFrame时使用
     Returns:
         str: 执行结果信息，包含生成的工作表信息
@@ -355,11 +355,11 @@ def plot_matplotlib_chart(
     save_path: str,
     python_code: str,
 ) -> str:
-    """绘制Excel数据的可视化图表专用函数。
+    """绘制Excel或CSV数据的可视化图表专用函数。
 
     Args:
-        filepath: Excel文件路径
-        sheet_name: 工作表名称
+        filepath: 源文件路径
+        sheet_name: 工作表名称（对于CSV文件，此参数将被忽略）
         save_path: 图表保存路径
         python_code: 要执行的Python代码，定义为 def main(df, plt)，可以使用 matplotlib 进行可视化, 返回 plt 对象，不用保存
 
@@ -421,8 +421,8 @@ def analyze_numeric_stats(
     """获取数值列的统计信息，包括均值、中位数、标准差、分位数等。
 
     Args:
-        filepath: Excel文件路径
-        sheet_name: 工作表名称
+        filepath: 源文件路径
+        sheet_name: 工作表名称（对于CSV文件，此参数将被忽略）
         columns: 要分析的列名列表，默认分析所有数值列，至少一列。所有列都必须是数值类型且中文名称。最多 10 列。
 
     Returns:
@@ -463,8 +463,8 @@ def analyze_group_stats(
     """按指定列分组并计算统计信息。
 
     Args:
-        filepath: Excel文件路径
-        sheet_name: 工作表名称
+        filepath: 源文件路径
+        sheet_name: 工作表名称（对于CSV文件，此参数将被忽略）
         group_by: 用于分组的列名
         agg_columns: 需要统计的列名列表
         agg_functions: 统计函数列表，支持 'mean', 'sum', 'count', 'min', 'max' 等
@@ -500,8 +500,8 @@ def analyze_time_series(
     """对时间序列数据进行分析，包括趋势、季节性等。
 
     Args:
-        filepath: Excel文件路径
-        sheet_name: 工作表名称
+        filepath: 源文件路径
+        sheet_name: 工作表名称（对于CSV文件，此参数将被忽略）
         date_column: 日期列名
         value_column: 值列名
         freq: 重采样频率，如'D'(天),'M'(月),'Y'(年)
@@ -528,11 +528,11 @@ def analyze_time_series(
 
 @mcp.tool()
 def get_random_sample(filepath: str, sheet_name: str, sample_size: int) -> str:
-    """获取Excel工作表中的随机采样数据。
+    """获取Excel或CSV文件中的随机采样数据。
 
     Args:
-        filepath: 目标Excel文件的相对或绝对路径
-        sheet_name: 要采样的工作表名称
+        filepath: 目标文件的相对或绝对路径
+        sheet_name: 要采样的工作表名称（对于CSV文件，此参数将被忽略）
         sample_size: 需要采样的行数
 
     Returns:
@@ -558,9 +558,9 @@ def get_random_sample(filepath: str, sheet_name: str, sample_size: int) -> str:
 
 
 async def run_server():
-    """启动Excel MCP服务器。"""
+    """启动Excel和CSV文件处理MCP服务器。"""
     try:
-        logger.info(f"Starting Excel MCP server (files directory: {EXCEL_FILES_PATH})")
+        logger.info(f"Starting Excel/CSV MCP server (files directory: {EXCEL_FILES_PATH})")
         await mcp.run_sse_async()
     except KeyboardInterrupt:
         logger.info("Server stopped by user")
